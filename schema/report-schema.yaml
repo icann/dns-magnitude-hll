@@ -1,0 +1,70 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+
+type: object
+required:
+  - date
+  - source
+  - magnitudeData
+properties:
+  date:
+    description: "UTC day of collected data"
+    type: string
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    example: "2025-05-20"
+  source:
+    description: The name of the provider of the magnitude score
+    type: string
+    example: "root-servers.net"
+  sourceType:
+    description: Source type of the magnitude score
+    type: string
+    enum:
+      - authoritative
+      - recursive
+  totalUniqueClients:
+    description: |
+      Total number of unique clients used to calculate the magnitude score
+    type: number
+    minimum: 0
+    example: 42
+  totalQueryVolume:
+    description: |
+      Total query volume used to calculate the magnitude score
+    type: number
+    minimum: 0
+    example: 152000000
+  magnitudeData:
+    type: array
+    uniqueItems: true
+    items:
+      $ref: '#/definitions/magnitudeData'
+
+definitions:
+  magnitudeData:
+    type: object
+    required:
+      - domain
+      - magnitude
+    properties:
+      domain:
+        description: DNS domain
+        type: string
+        example: arpa
+      magnitude:
+        description: The aggregated Magnitude score of the domain
+        type: number
+        minimum: 0
+        maximum: 10
+        example: 3.14
+      uniqueClients:
+        description: |
+          Number of unique clients used to calculate the magnitude score
+        type: number
+        minimum: 0
+        example: 42
+      queryVolume:
+        description: |
+          Total query volume used to calculate the magnitude score
+        type: number
+        minimum: 0
+        example: 1000
