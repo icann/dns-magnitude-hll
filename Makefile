@@ -1,10 +1,12 @@
+BINARY=		dnsmag
+
+
 all: build
 
-parse:
-	go run ./cmd/dnsmag parse testdata/20240614-090128_300.pcap
+build: $(BINARY)
 
-view:
-	go run ./cmd/dnsmag view testdata/20240614-090128_300.out
+$(BINARY):
+	go build -o dnsmag ./app
 
-build:
-	go build -o dnsmag-app ./app
+clean:
+	rm -f $(BINARY)
