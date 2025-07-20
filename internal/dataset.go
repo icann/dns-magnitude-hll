@@ -21,7 +21,7 @@ type HLLWrapper struct {
 type MagnitudeDataset struct {
 	Version           uint16                   `cbor:"version"`
 	Date              *TimeWrapper             `cbor:"date"`			   // UTC date of collection
-	GlobalHll         *HLLWrapper              `cbor:"global_hll"`	       // HLL for all unique source IPs
+	GlobalHll         *HLLWrapper              `cbor:"all_clients_hll"`    // HLL for all unique source IPs
 	AllClientsCount   uint64                   `cbor:"all_clients_count"`  // Cardinality of GlobalHll
 	AllQueriesCount   uint64                   `cbor:"all_queries_count"`
 	Domains           map[DomainName]domainHll `cbor:"domains"`
@@ -33,7 +33,7 @@ type MagnitudeDataset struct {
 // Per-domain data
 type domainHll struct {
 	Domain          DomainName  `cbor:"domain"`        // Domain name
-	Hll             *HLLWrapper `cbor:"hll"`           // HLL counter for unique source IPs
+	Hll             *HLLWrapper `cbor:"clients_hll"`   // HLL counter for unique source IPs
 	ClientsCount    uint64      `cbor:"clients_count"` // Number of clients querying this domain (cardinality of HLL)
 	QueriesCount    uint64      `cbor:"queries_count"` // Number of queries for this domain (absolute count)
 	extraAllClients map[netip.Addr]struct{}			   // All clients, only used when printing stats to stdout
