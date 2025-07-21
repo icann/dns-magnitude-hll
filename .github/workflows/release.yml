@@ -1,0 +1,56 @@
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Release
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - "1.24.5"
+        go-os-arch:
+          - "darwin/amd64"
+          - "darwin/arm64"
+          - "freebsd/amd64"
+          - "freebsd/arm64"
+          - "linux/amd64"
+          - "linux/arm64"
+          - "netbsd/amd64"
+          - "netbsd/arm64"
+          - "openbsd/amd64"
+          - "openbsd/arm64"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Get OS and arch info
+        run: |
+          GOOSARCH=${{matrix.go-os-arch}}
+          GOOS=${GOOSARCH%/*}
+          GOARCH=${GOOSARCH#*/}
+          BINARY_NAME=dnsmag-$GOOS-$GOARCH
+          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          echo "GOOS=$GOOS" >> $GITHUB_ENV
+          echo "GOARCH=$GOARCH" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          go build -o "$BINARY_NAME" -v ./app
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: ${{env.BINARY_NAME}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
