@@ -17,6 +17,11 @@ type HLLWrapper struct {
 	*hll.Hll
 }
 
+// TimeWrapper wraps time.Time to provide custom CBOR marshaling as tag 1004
+type TimeWrapper struct {
+	time.Time
+}
+
 // Main data structure for storing domain statistics. This matches the structure of the CBOR files.
 type MagnitudeDataset struct {
 	Version           uint16                   `cbor:"version"`

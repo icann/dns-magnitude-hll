@@ -36,11 +36,6 @@ func (hw *HLLWrapper) UnmarshalCBOR(data []byte) error {
 	return nil
 }
 
-// TimeWrapper wraps time.Time to provide custom CBOR marshaling as tag 1004
-type TimeWrapper struct {
-	time.Time
-}
-
 // Time is encoded as CBOR tag 1004 with string representation
 func (tw TimeWrapper) MarshalCBOR() ([]byte, error) {
 	tag := cbor.Tag{Number: 1004, Content: tw.Format(time.DateOnly)}
