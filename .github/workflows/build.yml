@@ -21,8 +21,6 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Display Go version
         run: go version
-      - name: Install libpcap
-        run: sudo apt-get install -y libpcap-dev
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
