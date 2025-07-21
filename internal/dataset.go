@@ -45,7 +45,7 @@ type domainHll struct {
 }
 
 // Used to make a list of domains by count
-type domainMagnitude struct {
+type DomainMagnitude struct {
 	Domain    DomainName
 	Magnitude float64
 	DomainHll *domainHll
@@ -89,18 +89,18 @@ func newDomain(domain DomainName) domainHll {
 	}
 }
 
-func (ds *MagnitudeDataset) SortedByMagnitude() []domainMagnitude {
-	var sorted []domainMagnitude
+func (dataset *MagnitudeDataset) SortedByMagnitude() []DomainMagnitude {
+	var sorted []DomainMagnitude
 
-	for _, this := range ds.Domains {
+	for _, this := range dataset.Domains {
 		numSrcIPs := this.ClientsCount
 
-		magnitude := (math.Log(float64(numSrcIPs)) / math.Log(float64(ds.AllClientsCount))) * 10
+		magnitude := (math.Log(float64(numSrcIPs)) / math.Log(float64(dataset.AllClientsCount))) * 10
 
-		sorted = append(sorted, domainMagnitude{this.Domain, magnitude, &this})
+		sorted = append(sorted, DomainMagnitude{this.Domain, magnitude, &this})
 	}
 
-	slices.SortFunc(sorted, func(a, b domainMagnitude) int {
+	slices.SortFunc(sorted, func(a, b DomainMagnitude) int {
 		return int(a.Magnitude*1000) - int(b.Magnitude*1000)
 	})
 
@@ -108,12 +108,12 @@ func (ds *MagnitudeDataset) SortedByMagnitude() []domainMagnitude {
 }
 
 // keeps only the top N domains by magnitude
-func (ds *MagnitudeDataset) Truncate(maxDomains int) error {
-	if maxDomains <= 0 || len(ds.Domains) <= maxDomains {
+func (dataset *MagnitudeDataset) Truncate(maxDomains int) error {
+	if maxDomains <= 0 || len(dataset.Domains) <= maxDomains {
 		return nil // Nothing to truncate
 	}
 
-	sorted := ds.SortedByMagnitude()
+	sorted := dataset.SortedByMagnitude()
 	idx := max(len(sorted)-maxDomains, 0)
 
 	topDomains := sorted[idx:]
@@ -123,60 +123,60 @@ func (ds *MagnitudeDataset) Truncate(maxDomains int) error {
 		res[dm.Domain] = *dm.DomainHll
 	}
 
-	ds.Domains = res
+	dataset.Domains = res
 	return nil
 }
 
 // count a query for a domain and source IP address.
-func (stats *MagnitudeDataset) updateStats(domain DomainName, src IPAddress) {
+func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress) {
 	if domain == "" {
 		return
 	}
 
 	// Ensure domainHll exists for this domain
-	dh, found := stats.Domains[domain]
+	dh, found := dataset.Domains[domain]
 	if !found {
 		dh = newDomain(domain)
 	}
 
 	// Add the source IP to the set of unique source IPs. This set is only for validation
 	// during development, and should be considered for removal later.
-	stats.extraAllClients[src.truncatedIP] = struct{}{}
+	dataset.extraAllClients[src.truncatedIP] = struct{}{}
 	dh.extraAllClients[src.truncatedIP] = struct{}{}
 	if src.ipAddress.Is6() {
-		stats.extraV6Clients[src.truncatedIP] = struct{}{}
+		dataset.extraV6Clients[src.truncatedIP] = struct{}{}
 	}
 
 	// Increase queriesCount
 	dh.QueriesCount++
-	stats.AllQueriesCount++
+	dataset.AllQueriesCount++
 
 	// count IP in the two HyperLogLogs
 	dh.Hll.AddRaw(src.hash)
-	stats.AllClientsHll.AddRaw(src.hash)
+	dataset.AllClientsHll.AddRaw(src.hash)
 
 	// Save updated domainHll back to the map
-	stats.Domains[domain] = dh
+	dataset.Domains[domain] = dh
 }
 
 // update the clientsCount for each domain and the global clientsCount after all queries have been processed.
-func (stats *MagnitudeDataset) finaliseStats() {
+func (dataset *MagnitudeDataset) finaliseStats() {
 	// for each domain, update the clientsCount with cardinality of the HyperLogLog
-	for domain, dh := range stats.Domains {
+	for domain, dh := range dataset.Domains {
 		dh.ClientsCount = dh.Hll.Cardinality()
-		stats.Domains[domain] = dh
+		dataset.Domains[domain] = dh
 	}
 	// Update the global clientsCount
-	stats.AllClientsCount = stats.AllClientsHll.Cardinality()
+	dataset.AllClientsCount = dataset.AllClientsHll.Cardinality()
 	// Store number of unique domains before any truncation
-	stats.extraDomainsCount = uint(len(stats.Domains))
+	dataset.extraDomainsCount = uint(len(dataset.Domains))
 }
 
-func (stats *MagnitudeDataset) DateString() string {
-	return stats.Date.Format(time.DateOnly)
+func (dataset *MagnitudeDataset) DateString() string {
+	return dataset.Date.Format(time.DateOnly)
 }
 
-func AggregateDatasets(datasets []MagnitudeDataset, minDomains int) (MagnitudeDataset, error) {
+func AggregateDatasets(datasets []MagnitudeDataset) (MagnitudeDataset, error) {
 	if len(datasets) < 2 {
 		return MagnitudeDataset{}, fmt.Errorf("no datasets to aggregate")
 	}

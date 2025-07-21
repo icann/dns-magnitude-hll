@@ -60,8 +60,8 @@ func (tw *TimeWrapper) UnmarshalCBOR(data []byte) error {
 	return fmt.Errorf("unable to unmarshal TimeWrapper")
 }
 
-// WriteDnsMagFile writes the magnitudeDataset to a file in CBOR format.
-func WriteDnsMagFile(stats MagnitudeDataset, filename string) (string, error) {
+// WriteDNSMagFile writes the magnitudeDataset to a file in CBOR format.
+func WriteDNSMagFile(stats MagnitudeDataset, filename string) (string, error) {
 	file, err := os.Create(filename)
 	if err != nil {
 		return "", err
@@ -73,8 +73,8 @@ func WriteDnsMagFile(stats MagnitudeDataset, filename string) (string, error) {
 	return filename, err
 }
 
-// LoadDnsMagFile loads a magnitudeDataset from a CBOR file.
-func LoadDnsMagFile(filename string) (MagnitudeDataset, error) {
+// LoadDNSMagFile loads a magnitudeDataset from a CBOR file.
+func LoadDNSMagFile(filename string) (MagnitudeDataset, error) {
 	var stats MagnitudeDataset
 
 	file, err := os.Open(filename)

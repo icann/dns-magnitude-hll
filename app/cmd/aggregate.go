@@ -15,15 +15,13 @@ var aggregateCmd = &cobra.Command{
 	Use:   "aggregate <dnsmag-file1> <dnsmag-file2> [dnsmag-file3...]",
 	Short: "Aggregate multiple DNSMAG files into combined statistics",
 	Long:  `Aggregate domain statistics from multiple DNSMAG files into a single combined dataset.`,
-	Args: cobra.MinimumNArgs(2),
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		internal.InitStats()
-
 		var datasets []internal.MagnitudeDataset
 
 		// Load all provided CBOR files
 		for _, filename := range args {
-			stats, err := internal.LoadDnsMagFile(filename)
+			stats, err := internal.LoadDNSMagFile(filename)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to load DNSMAG file %s: %v\n", filename, err)
 				os.Exit(1)
@@ -32,10 +30,14 @@ var aggregateCmd = &cobra.Command{
 			fmt.Printf("Loaded dataset from %s\n", filename)
 		}
 
-		top, _ := cmd.Flags().GetInt("top")
+		top, err := cmd.Flags().GetInt("top")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse 'top' flag: %v\n", err)
+			os.Exit(1)
+		}
 
 		// Aggregate the datasets
-		aggregated, err := internal.AggregateDatasets(datasets, top)
+		aggregated, err := internal.AggregateDatasets(datasets)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to aggregate datasets: %v\n", err)
 			os.Exit(1)
@@ -50,13 +52,21 @@ var aggregateCmd = &cobra.Command{
 
 		// Format and print the aggregated domain statistics
 		var buf bytes.Buffer
-		internal.FormatDomainStats(&buf, aggregated, 0)
+		err = internal.FormatDomainStats(&buf, aggregated, 0)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to format domain statistics: %v\n", err)
+			os.Exit(1)
+		}
 		fmt.Println(buf.String())
 
 		// Save the aggregated dataset to output file if specified
-		output, _ := cmd.Flags().GetString("output")
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse 'output' flag: %v\n", err)
+			os.Exit(1)
+		}
 		if output != "" {
-			outFilename, err := internal.WriteDnsMagFile(aggregated, output)
+			outFilename, err := internal.WriteDNSMagFile(aggregated, output)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to write aggregated dataset to %s: %v\n", output, err)
 				os.Exit(1)

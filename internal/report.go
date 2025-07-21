@@ -3,12 +3,12 @@
 package internal
 
 type Report struct {
-	Date                string          `json:"date"`
-	Source              string          `json:"source"`
-	SourceType          string          `json:"sourceType"`
-	TotalUniqueClients  uint64          `json:"totalUniqueClients"`
-	TotalQueryVolume    uint64          `json:"totalQueryVolume"`
-	MagnitudeData       []MagnitudeData `json:"magnitudeData"`
+	Date               string          `json:"date"`
+	Source             string          `json:"source"`
+	SourceType         string          `json:"sourceType"`
+	TotalUniqueClients uint64          `json:"totalUniqueClients"`
+	TotalQueryVolume   uint64          `json:"totalQueryVolume"`
+	MagnitudeData      []MagnitudeData `json:"magnitudeData"`
 }
 
 type MagnitudeData struct {

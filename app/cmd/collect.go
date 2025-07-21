@@ -15,14 +15,20 @@ import (
 var collectCmd = &cobra.Command{
 	Use:   "collect <input-file> [input-file2] [input-file3...]",
 	Short: "Parse PCAP files and generate domain statistics",
-	Long:  `Parse one or more PCAP files containing DNS traffic and generate domain statistics.
+	Long: `Parse one or more PCAP files containing DNS traffic and generate domain statistics.
 Save them to a DNSMAG file (CBOR format).`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		internal.InitStats()
-
-		top, _ := cmd.Flags().GetInt("top")
-		output, _ := cmd.Flags().GetString("output")
+		top, err := cmd.Flags().GetInt("top")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to get top flag: %v\n", err)
+			os.Exit(1)
+		}
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to get output flag: %v\n", err)
+			os.Exit(1)
+		}
 
 		// Collect all datasets from input files
 		var datasets []internal.MagnitudeDataset
@@ -37,13 +43,11 @@ Save them to a DNSMAG file (CBOR format).`,
 
 		// Aggregate all datasets into one
 		var res internal.MagnitudeDataset
-		var err error
 
 		if len(datasets) == 1 {
 			res = datasets[0]
 		} else {
-			// Use aggregation function with minimum requirement of 0 domains (no validation)
-			res, err = internal.AggregateDatasets(datasets, 0)
+			res, err = internal.AggregateDatasets(datasets)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to aggregate datasets: %v\n", err)
 				os.Exit(1)
@@ -59,7 +63,11 @@ Save them to a DNSMAG file (CBOR format).`,
 
 		// Format and print the domain statistics
 		var buf bytes.Buffer
-		internal.FormatDomainStats(&buf, res, totalElapsed)
+		err = internal.FormatDomainStats(&buf, res, totalElapsed)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to format domain statistics: %v\n", err)
+			os.Exit(1)
+		}
 		if len(args) == 1 {
 			fmt.Printf("Statistics for %s:\n", args[0])
 		} else {
@@ -70,7 +78,7 @@ Save them to a DNSMAG file (CBOR format).`,
 
 		// Write stats to DNSMAG file only if output is specified
 		if output != "" {
-			_, err := internal.WriteDnsMagFile(res, output)
+			_, err := internal.WriteDNSMagFile(res, output)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to write DNSMAG to %s: %v\n", output, err)
 			} else {

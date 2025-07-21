@@ -20,10 +20,16 @@ type IPAddress struct {
 func newIPAddress(addr netip.Addr) IPAddress {
 	var truncated netip.Addr
 	if addr.Is4() {
-		prefix, _ := addr.Prefix(24)
+		prefix, err := addr.Prefix(24)
+		if err != nil {
+			panic("invalid IPv4 address")
+		}
 		truncated = prefix.Addr()
 	} else if addr.Is6() {
-		prefix, _ := addr.Prefix(48)
+		prefix, err := addr.Prefix(48)
+		if err != nil {
+			panic("invalid IPv6 address")
+		}
 		truncated = prefix.Addr()
 	} else {
 		panic("invalid IP address")
@@ -40,8 +46,8 @@ func newIPAddress(addr netip.Addr) IPAddress {
 
 // newIPAddress creates an IPAddress from a string
 func newIPAddressFromString(s string) IPAddress {
-	addr, error := netip.ParseAddr(s)
-	if error != nil {
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
 		panic("invalid IP address")
 	}
 	return newIPAddress(addr)
