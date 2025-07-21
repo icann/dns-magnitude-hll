@@ -25,39 +25,90 @@ func countAsString(actual, estimated uint) string {
 	}
 }
 
-// FormatDomainStats prepares domain statistics for printing.
-func FormatDomainStats(w io.Writer, stats MagnitudeDataset, elapsed time.Duration) {
+// TableRow represents a row in the output table with left and right columns
+type TableRow struct {
+	Lhs string
+	Rhs string
+}
 
-	fmt.Fprintln(w, "Domain counts:")
+// printTable prints a table with dynamic column widths
+func printTable(w io.Writer, rows []TableRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	maxLhsWidth := 0
+	for _, row := range rows {
+		if len(row.Lhs) > maxLhsWidth {
+			maxLhsWidth = len(row.Lhs)
+		}
+	}
+
+	for _, row := range rows {
+		if _, err := fmt.Fprintf(w, "%-*s : %s\n", maxLhsWidth, row.Lhs, row.Rhs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// FormatDomainStats prepares domain statistics for printing.
+func FormatDomainStats(w io.Writer, stats MagnitudeDataset, elapsed time.Duration) error {
+
+	if _, err := fmt.Fprintln(w, "Domain counts:"); err != nil {
+		return err
+	}
 
 	for _, dm := range stats.SortedByMagnitude() {
-		fmt.Fprintf(w, "%-30s magnitude: %.3f, queries %d, clients %s, hll size %d\n",
+		if _, err := fmt.Fprintf(w, "%-30s magnitude: %.3f, queries %d, clients %s, hll size %d\n",
 			string(dm.Domain),
 			dm.Magnitude,
 			dm.DomainHll.QueriesCount,
 			countAsString(uint(len(dm.DomainHll.extraAllClients)), uint(dm.DomainHll.ClientsCount)),
 			len(dm.DomainHll.Hll.ToBytes()),
-		)
+		); err != nil {
+			return err
+		}
 	}
 
-	fmt.Fprintln(w, "")
-	fmt.Fprintf(w, "Global statistics         :\n")
-	fmt.Fprintf(w, "Date                      : %s\n", stats.DateString())
-	fmt.Fprintf(w, "Total queries             : %d\n", stats.AllQueriesCount)
+	if _, err := fmt.Fprintln(w, ""); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, "Global statistics:"); err != nil {
+		return err
+	}
+
+	// Build table rows for global statistics
+	var table []TableRow
+
+	table = append(table, TableRow{"Date", stats.DateString()})
+	table = append(table, TableRow{"Total queries", fmt.Sprintf("%d", stats.AllQueriesCount)})
+
 	if stats.extraDomainsCount > 0 {
 		// If stats.extraDomainsCount is set, it is the number of domains before truncation
-		fmt.Fprintf(w, "Total domains             : %d (truncated: %d)\n", stats.extraDomainsCount, len(stats.Domains))
+		table = append(table, TableRow{"Total domains", fmt.Sprintf("%d (truncated: %d)", stats.extraDomainsCount, len(stats.Domains))})
 	} else {
-		fmt.Fprintf(w, "Total domains             : %d\n", len(stats.Domains))
+		table = append(table, TableRow{"Total domains", fmt.Sprintf("%d", len(stats.Domains))})
 	}
-	fmt.Fprintf(w, "Total unique source IPs   : %s\n", countAsString(uint(len(stats.extraAllClients)), uint(stats.AllClientsCount)))
+
+	table = append(table, TableRow{"Total unique source IPs", countAsString(uint(len(stats.extraAllClients)), uint(stats.AllClientsCount))})
+
 	if len(stats.extraV6Clients) > 0 {
 		// Information about IPv6 clients is only available in the "collect" command. It is not saved in the DNSMAG file.
-		fmt.Fprintf(w, "Total unique v6 source IPs: %d\n", uint(len(stats.extraV6Clients)))
+		table = append(table, TableRow{"Total unique v6 source IPs", fmt.Sprintf("%d", uint(len(stats.extraV6Clients)))})
 	}
-	fmt.Fprintf(w, "Global HLL storage size   : %d bytes\n", len(stats.GlobalHll.ToBytes()))
+
+	table = append(table, TableRow{"Global HLL storage size", fmt.Sprintf("%d bytes", len(stats.GlobalHll.ToBytes()))})
+
+	if err := printTable(w, table); err != nil {
+		return err
+	}
 
 	if elapsed != 0 {
-		fmt.Fprintf(w, "\nExecution time: %s\n", elapsed)
+		if _, err := fmt.Fprintf(w, "\nExecution time: %s\n", elapsed); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
