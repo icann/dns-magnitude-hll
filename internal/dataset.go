@@ -20,23 +20,23 @@ type HLLWrapper struct {
 // Main data structure for storing domain statistics. This matches the structure of the CBOR files.
 type MagnitudeDataset struct {
 	Version           uint16                   `cbor:"version"`
-	Date              *TimeWrapper             `cbor:"date"`			   // UTC date of collection
-	GlobalHll         *HLLWrapper              `cbor:"all_clients_hll"`    // HLL for all unique source IPs
-	AllClientsCount   uint64                   `cbor:"all_clients_count"`  // Cardinality of GlobalHll
+	Date              *TimeWrapper             `cbor:"date"`              // UTC date of collection
+	GlobalHll         *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
+	AllClientsCount   uint64                   `cbor:"all_clients_count"` // Cardinality of GlobalHll
 	AllQueriesCount   uint64                   `cbor:"all_queries_count"`
 	Domains           map[DomainName]domainHll `cbor:"domains"`
 	extraAllClients   map[netip.Addr]struct{}  // All clients, only used when printing stats in collect command
 	extraV6Clients    map[netip.Addr]struct{}  // IPv6 clients, only used when printing stats in collect command
-	extraDomainsCount uint				   	   // Number of unique domains before any truncation
+	extraDomainsCount uint                     // Number of unique domains before any truncation
 }
 
 // Per-domain data
 type domainHll struct {
-	Domain          DomainName  `cbor:"domain"`        // Domain name
-	Hll             *HLLWrapper `cbor:"clients_hll"`   // HLL counter for unique source IPs
-	ClientsCount    uint64      `cbor:"clients_count"` // Number of clients querying this domain (cardinality of HLL)
-	QueriesCount    uint64      `cbor:"queries_count"` // Number of queries for this domain (absolute count)
-	extraAllClients map[netip.Addr]struct{}			   // All clients, only used when printing stats to stdout
+	Domain          DomainName              `cbor:"domain"`        // Domain name
+	Hll             *HLLWrapper             `cbor:"clients_hll"`   // HLL counter for unique source IPs
+	ClientsCount    uint64                  `cbor:"clients_count"` // Number of clients querying this domain (cardinality of HLL)
+	QueriesCount    uint64                  `cbor:"queries_count"` // Number of queries for this domain (absolute count)
+	extraAllClients map[netip.Addr]struct{} // All clients, only used when printing stats to stdout
 }
 
 // Used to make a list of domains by count
@@ -46,9 +46,9 @@ type domainMagnitude struct {
 	DomainHll *domainHll
 }
 
-func InitStats() {
+func InitStats() error {
 	// initialise the HLL defaults to not have to specify them every time we create a new HLL
-	hll.Defaults(hll.Settings{
+	return hll.Defaults(hll.Settings{
 		Log2m:             14, // chosen for < 1% error rate (~0.81%)
 		Regwidth:          5,  // 5 bits per register, should be fine for number of clients < 10**10
 		ExplicitThreshold: 0,
@@ -109,7 +109,7 @@ func (ds *MagnitudeDataset) Truncate(maxDomains int) error {
 	}
 
 	sorted := ds.SortedByMagnitude()
-	idx := max(len(sorted) - maxDomains, 0)
+	idx := max(len(sorted)-maxDomains, 0)
 
 	topDomains := sorted[idx:]
 
@@ -168,7 +168,7 @@ func (stats *MagnitudeDataset) finaliseStats() {
 }
 
 func (stats *MagnitudeDataset) DateString() string {
-	return stats.Date.Time.Format(time.DateOnly)
+	return stats.Date.Format(time.DateOnly)
 }
 
 func AggregateDatasets(datasets []MagnitudeDataset, minDomains int) (MagnitudeDataset, error) {
@@ -193,7 +193,9 @@ func AggregateDatasets(datasets []MagnitudeDataset, minDomains int) (MagnitudeDa
 
 	// Aggregate global HLL
 	for _, dataset := range datasets {
-		res.GlobalHll.StrictUnion(*dataset.GlobalHll.Hll)
+		if err := res.GlobalHll.StrictUnion(*dataset.GlobalHll.Hll); err != nil {
+			return MagnitudeDataset{}, fmt.Errorf("failed to union all clients HLL: %w", err)
+		}
 	}
 
 	// Aggregate domain-level statistics
@@ -207,7 +209,9 @@ func AggregateDatasets(datasets []MagnitudeDataset, minDomains int) (MagnitudeDa
 				this = newDomain(domain)
 			}
 			this.QueriesCount += domainData.QueriesCount
-			this.Hll.StrictUnion(*domainData.Hll.Hll)
+			if err := this.Hll.StrictUnion(*domainData.Hll.Hll); err != nil {
+				return MagnitudeDataset{}, fmt.Errorf("failed to union HLL for domain %s: %w", domain, err)
+			}
 
 			res.Domains[domain] = this
 		}
