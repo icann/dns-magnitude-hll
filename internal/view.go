@@ -98,7 +98,7 @@ func FormatDomainStats(w io.Writer, stats MagnitudeDataset, elapsed time.Duratio
 		table = append(table, TableRow{"Total unique v6 source IPs", fmt.Sprintf("%d", uint(len(stats.extraV6Clients)))})
 	}
 
-	table = append(table, TableRow{"Global HLL storage size", fmt.Sprintf("%d bytes", len(stats.GlobalHll.ToBytes()))})
+	table = append(table, TableRow{"Global HLL storage size", fmt.Sprintf("%d bytes", len(stats.AllClientsHll.ToBytes()))})
 
 	if err := printTable(w, table); err != nil {
 		return err

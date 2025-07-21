@@ -26,7 +26,7 @@ type TimeWrapper struct {
 type MagnitudeDataset struct {
 	Version           uint16                   `cbor:"version"`
 	Date              *TimeWrapper             `cbor:"date"`              // UTC date of collection
-	GlobalHll         *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
+	AllClientsHll     *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
 	AllClientsCount   uint64                   `cbor:"all_clients_count"` // Cardinality of GlobalHll
 	AllQueriesCount   uint64                   `cbor:"all_queries_count"`
 	Domains           map[DomainName]domainHll `cbor:"domains"`
@@ -69,7 +69,7 @@ func newDataset() MagnitudeDataset {
 	return MagnitudeDataset{
 		Version:           1,
 		Date:              &TimeWrapper{Time: dateOnly},
-		GlobalHll:         &HLLWrapper{Hll: &hll.Hll{}},
+		AllClientsHll:     &HLLWrapper{Hll: &hll.Hll{}},
 		Domains:           make(map[DomainName]domainHll),
 		AllClientsCount:   0,
 		AllQueriesCount:   0,
@@ -153,7 +153,7 @@ func (stats *MagnitudeDataset) updateStats(domain DomainName, src IPAddress) {
 
 	// count IP in the two HyperLogLogs
 	dh.Hll.AddRaw(src.hash)
-	stats.GlobalHll.AddRaw(src.hash)
+	stats.AllClientsHll.AddRaw(src.hash)
 
 	// Save updated domainHll back to the map
 	stats.Domains[domain] = dh
@@ -167,7 +167,7 @@ func (stats *MagnitudeDataset) finaliseStats() {
 		stats.Domains[domain] = dh
 	}
 	// Update the global clientsCount
-	stats.AllClientsCount = stats.GlobalHll.Cardinality()
+	stats.AllClientsCount = stats.AllClientsHll.Cardinality()
 	// Store number of unique domains before any truncation
 	stats.extraDomainsCount = uint(len(stats.Domains))
 }
@@ -198,7 +198,7 @@ func AggregateDatasets(datasets []MagnitudeDataset, minDomains int) (MagnitudeDa
 
 	// Aggregate global HLL
 	for _, dataset := range datasets {
-		if err := res.GlobalHll.StrictUnion(*dataset.GlobalHll.Hll); err != nil {
+		if err := res.AllClientsHll.StrictUnion(*dataset.AllClientsHll.Hll); err != nil {
 			return MagnitudeDataset{}, fmt.Errorf("failed to union all clients HLL: %w", err)
 		}
 	}
