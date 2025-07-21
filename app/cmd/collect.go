@@ -36,7 +36,11 @@ Save them to a DNSMAG file (CBOR format).`,
 
 		// Process each input file
 		for _, inputFile := range args {
-			stats, elapsed := internal.LoadPcap(inputFile)
+			stats, elapsed, err := internal.LoadPcap(inputFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to load PCAP file %s: %v\n", inputFile, err)
+				os.Exit(1)
+			}
 			datasets = append(datasets, stats)
 			totalElapsed += elapsed
 		}
