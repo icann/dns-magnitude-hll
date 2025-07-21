@@ -13,8 +13,7 @@
 The _collector_ is used to create a CBOR-encoded dataset based on input data in any of the following formats:
 
 - [PCAP](https://en.wikipedia.org/wiki/Pcap) and GZIPed PCAP
-- [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) text files (domain, client IP address)
-- [C-DNS](https://datatracker.ietf.org/doc/html/rfc8618) (Compacted-DNS)
+- [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) text files (client IP address, domain)
 
 Input data is read from files specified on the command line.
 
@@ -43,6 +42,16 @@ The _reporter_ creates a JSON formatted DNS Magnitude report from a dataset.
     dnsmag report --top 2500 --output report.json data.cbor
 
 
+## Schemas
+
+### Dataset
+
+The CBOR-encoded _dataset_ is described in the [dataset CDDL](schema/dataset.cddl).
+
+### Report
+
+The JSON-encoded _report_ is described in the [report schema](schema/report-schema.yaml).
+
 ## HyperLogLog
 
 Datasets contains HyperLogLog (HLL) data of observed clients. The HLLs are created using the parameters found below.
@@ -51,9 +60,9 @@ Datasets contains HyperLogLog (HLL) data of observed clients. The HLLs are creat
 
 HLLs are encoded per [Aggregate Knowledge HLL Storage specification](https://github.com/aggregateknowledge/hll-storage-spec) with the following parameters:
 
-- log2m: 10
-- Regwidth: 4
-- Explicit Threshold: AutoExplicitThreshold
+- log2m: 14
+- Regwidth: 5
+- Explicit Threshold: 0
 - Sparse Enabled: True
 
 ### HLL Hash Function
