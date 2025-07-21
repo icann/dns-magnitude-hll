@@ -2,5 +2,6 @@
     "cSpell.words": [
         "CBOR",
         "dnsmag"
-    ]
+    ],
+    "go.lintTool": "golangci-lint"
 }

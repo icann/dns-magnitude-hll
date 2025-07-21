@@ -17,7 +17,7 @@ func (hw HLLWrapper) MarshalCBOR() ([]byte, error) {
 		return cbor.Marshal(nil)
 	}
 	// Wrap the raw bytes in a CBOR binary encoding
-	raw := hw.Hll.ToBytes()
+	raw := hw.ToBytes()
 	return cbor.Marshal(raw)
 }
 
@@ -36,15 +36,9 @@ func (hw *HLLWrapper) UnmarshalCBOR(data []byte) error {
 	return nil
 }
 
-// TimeWrapper wraps time.Time to provide custom CBOR marshaling as tag 1004
-type TimeWrapper struct {
-	time.Time
-}
-
-//
 // Time is encoded as CBOR tag 1004 with string representation
 func (tw TimeWrapper) MarshalCBOR() ([]byte, error) {
-	tag := cbor.Tag{Number: 1004, Content: tw.Time.Format(time.DateOnly)}
+	tag := cbor.Tag{Number: 1004, Content: tw.Format(time.DateOnly)}
 	return cbor.Marshal(tag)
 }
 
@@ -66,30 +60,28 @@ func (tw *TimeWrapper) UnmarshalCBOR(data []byte) error {
 	return fmt.Errorf("unable to unmarshal TimeWrapper")
 }
 
-// WriteDnsMagFile writes the magnitudeDataset to a file in CBOR format.
-// The output filename is the input filename with ".dnsmag" extension.
-// Returns the output filename used.
-func WriteDnsMagFile(stats MagnitudeDataset, filename string) (string, error) {
+// WriteDNSMagFile writes the magnitudeDataset to a file in CBOR format.
+func WriteDNSMagFile(stats MagnitudeDataset, filename string) (string, error) {
 	file, err := os.Create(filename)
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	enc := cbor.NewEncoder(file)
 	err = enc.Encode(stats)
 	return filename, err
 }
 
-// LoadDnsMagFile loads a magnitudeDataset from a CBOR file.
-func LoadDnsMagFile(filename string) (MagnitudeDataset, error) {
+// LoadDNSMagFile loads a magnitudeDataset from a CBOR file.
+func LoadDNSMagFile(filename string) (MagnitudeDataset, error) {
 	var stats MagnitudeDataset
 
 	file, err := os.Open(filename)
 	if err != nil {
 		return stats, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	dec := cbor.NewDecoder(file)
 	err = dec.Decode(&stats)

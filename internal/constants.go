@@ -6,4 +6,4 @@ package internal
 const DefaultDomainCount = 2500
 
 // Number of labels in a DNS domain name to keep. Use 1 for just the TLD.
-const DefaultDnsDomainNameLabels = 1
+const DefaultDNSDomainNameLabels = 1

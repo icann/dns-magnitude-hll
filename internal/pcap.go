@@ -47,7 +47,7 @@ func processPackets(handle *pcap.Handle) MagnitudeDataset {
 			src := extractSrcIP(packet)
 
 			for _, this := range dns.Questions {
-				name, err := getDomainName(string(this.Name), DefaultDnsDomainNameLabels)
+				name, err := getDomainName(string(this.Name), DefaultDNSDomainNameLabels)
 				if err != nil {
 					// TODO: Log/analyse skipped domain names?
 					continue
