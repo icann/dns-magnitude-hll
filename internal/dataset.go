@@ -128,7 +128,7 @@ func (dataset *MagnitudeDataset) Truncate(maxDomains int) error {
 }
 
 // count a query for a domain and source IP address.
-func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress) {
+func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress, queryCount uint64) {
 	if domain == "" {
 		return
 	}
@@ -148,8 +148,8 @@ func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress) {
 	}
 
 	// Increase queriesCount
-	dh.QueriesCount++
-	dataset.AllQueriesCount++
+	dh.QueriesCount += queryCount
+	dataset.AllQueriesCount += queryCount
 
 	// count IP in the two HyperLogLogs
 	dh.Hll.AddRaw(src.hash)
