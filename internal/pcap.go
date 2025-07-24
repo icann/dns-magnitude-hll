@@ -13,7 +13,7 @@ import (
 	"github.com/google/gopacket/pcapgo"
 )
 
-func LoadPcap(filename string) (MagnitudeDataset, time.Duration, error) {
+func LoadPcap(filename string, date *time.Time) (MagnitudeDataset, time.Duration, error) {
 	fmt.Printf("Loading pcap file: %s\n", filename)
 
 	file, err := os.Open(filename)
@@ -28,7 +28,7 @@ func LoadPcap(filename string) (MagnitudeDataset, time.Duration, error) {
 	}
 
 	start := time.Now()
-	stats, err := processPackets(reader)
+	stats, err := processPackets(reader, date)
 	if err != nil {
 		return MagnitudeDataset{}, 0, fmt.Errorf("failed to process packets: %w", err)
 	}
@@ -37,14 +37,19 @@ func LoadPcap(filename string) (MagnitudeDataset, time.Duration, error) {
 }
 
 // Count DNS domain queries per domain and unique source IPs
-func processPackets(reader *pcapgo.Reader) (MagnitudeDataset, error) {
+func processPackets(reader *pcapgo.Reader, date *time.Time) (MagnitudeDataset, error) {
 	dataset := newDataset()
 	dateSet := false
 
+	if date != nil {
+		dataset.Date = &TimeWrapper{Time: date.UTC()}
+		dateSet = true
+	}
+
 	packetSource := gopacket.NewPacketSource(reader, reader.LinkType())
 	for packet := range packetSource.Packets() {
-		// Set the dataset date from the first packet's timestamp
 		if !dateSet {
+			// Set the dataset date from first packet's timestamp if no date was provided
 			packetTime := packet.Metadata().Timestamp
 			dataset.Date = &TimeWrapper{Time: packetTime.UTC()}
 			dateSet = true
@@ -66,7 +71,7 @@ func processPackets(reader *pcapgo.Reader) (MagnitudeDataset, error) {
 					continue
 				}
 
-				dataset.updateStats(name, src)
+				dataset.updateStats(name, src, 1)
 			}
 		}
 	}
