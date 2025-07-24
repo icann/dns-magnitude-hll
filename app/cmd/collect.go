@@ -29,6 +29,33 @@ Save them to a DNSMAG file (CBOR format).`,
 			fmt.Fprintf(os.Stderr, "Failed to get output flag: %v\n", err)
 			os.Exit(1)
 		}
+		filetype, err := cmd.Flags().GetString("filetype")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to get filetype flag: %v\n", err)
+			os.Exit(1)
+		}
+		dateStr, err := cmd.Flags().GetString("date")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to get date flag: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Validate filetype
+		if filetype != "pcap" && filetype != "csv" {
+			fmt.Fprintf(os.Stderr, "Invalid filetype '%s', must be 'pcap' or 'csv'\n", filetype)
+			os.Exit(1)
+		}
+
+		// Parse date if provided
+		var date *time.Time
+		if dateStr != "" {
+			parsedDate, err := time.Parse(time.DateOnly, dateStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid date format '%s', expected YYYY-MM-DD: %v\n", dateStr, err)
+				os.Exit(1)
+			}
+			date = &parsedDate
+		}
 
 		// Collect all datasets from input files
 		var datasets []internal.MagnitudeDataset
@@ -36,9 +63,17 @@ Save them to a DNSMAG file (CBOR format).`,
 
 		// Process each input file
 		for _, inputFile := range args {
-			stats, elapsed, err := internal.LoadPcap(inputFile)
+			var stats internal.MagnitudeDataset
+			var elapsed time.Duration
+
+			if filetype == "csv" {
+				stats, elapsed, err = internal.LoadCSVFile(inputFile, date)
+			} else {
+				stats, elapsed, err = internal.LoadPcap(inputFile, date)
+			}
+
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to load PCAP file %s: %v\n", inputFile, err)
+				fmt.Fprintf(os.Stderr, "Failed to load %s file %s: %v\n", filetype, inputFile, err)
 				os.Exit(1)
 			}
 			datasets = append(datasets, stats)
@@ -97,4 +132,6 @@ func init() {
 	rootCmd.AddCommand(collectCmd)
 	collectCmd.Flags().IntP("top", "n", internal.DefaultDomainCount, "Number of domains to collect")
 	collectCmd.Flags().StringP("output", "o", "", "Output file to save the aggregated dataset (optional, only shows stats on stdout if not specified)")
+	collectCmd.Flags().String("filetype", "pcap", "Input file type: 'pcap' or 'csv'")
+	collectCmd.Flags().String("date", "", "Date for CSV data in YYYY-MM-DD format (optional, defaults to data from input files or the current date)")
 }
