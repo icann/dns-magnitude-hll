@@ -23,14 +23,14 @@ jobs:
         go-os-arch:
           - "linux/amd64"
           - "linux/arm64"
-          #- "darwin/amd64"
-          #- "darwin/arm64"
-          #- "freebsd/amd64"
-          #- "freebsd/arm64"
-          #- "netbsd/amd64"
-          #- "netbsd/arm64"
-          #- "openbsd/amd64"
-          #- "openbsd/arm64"
+          - "darwin/amd64"
+          - "darwin/arm64"
+          - "freebsd/amd64"
+          - "freebsd/arm64"
+          - "netbsd/amd64"
+          - "netbsd/arm64"
+          - "openbsd/amd64"
+          - "openbsd/arm64"
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go ${{ matrix.go-version }}
