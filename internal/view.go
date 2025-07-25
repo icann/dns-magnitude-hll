@@ -105,11 +105,9 @@ func FormatDomainStats(w io.Writer, stats MagnitudeDataset, elapsed time.Duratio
 	// Add memory usage statistics
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	table = append(table, tableRow{"Memory Alloc", fmt.Sprintf("%d MB", m.Alloc/1024/1024)})
-	table = append(table, tableRow{"Memory TotalAlloc", fmt.Sprintf("%d MB", m.TotalAlloc/1024/1024)})
-	table = append(table, tableRow{"Memory HeapSys", fmt.Sprintf("%d MB", m.HeapSys/1024/1024)})
-	table = append(table, tableRow{"Memory Sys", fmt.Sprintf("%d MB", m.Sys/1024/1024)})
-	table = append(table, tableRow{"Memory NumGC", fmt.Sprintf("%d", m.NumGC)})
+	heapStr := fmt.Sprintf("%d MB", m.HeapAlloc/1024/1024)
+	maxStr := fmt.Sprintf("%d MB", m.HeapSys/1024/1024)
+	table = append(table, tableRow{"Memory Allocated", fmt.Sprintf("%s (peak estimated: %s)", heapStr, maxStr)})
 
 	if err := printTable(w, table); err != nil {
 		return err
