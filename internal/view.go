@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"runtime"
 	"time"
 )
 
@@ -100,6 +101,15 @@ func FormatDomainStats(w io.Writer, stats MagnitudeDataset, elapsed time.Duratio
 	}
 
 	table = append(table, tableRow{"Global HLL storage size", fmt.Sprintf("%d bytes", len(stats.AllClientsHll.ToBytes()))})
+
+	// Add memory usage statistics
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	table = append(table, tableRow{"Memory Alloc", fmt.Sprintf("%d MB", m.Alloc/1024/1024)})
+	table = append(table, tableRow{"Memory TotalAlloc", fmt.Sprintf("%d MB", m.TotalAlloc/1024/1024)})
+	table = append(table, tableRow{"Memory HeapSys", fmt.Sprintf("%d MB", m.HeapSys/1024/1024)})
+	table = append(table, tableRow{"Memory Sys", fmt.Sprintf("%d MB", m.Sys/1024/1024)})
+	table = append(table, tableRow{"Memory NumGC", fmt.Sprintf("%d", m.NumGC)})
 
 	if err := printTable(w, table); err != nil {
 		return err
