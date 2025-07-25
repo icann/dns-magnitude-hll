@@ -54,8 +54,10 @@ func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, err
 			break
 		}
 		if err != nil {
-			line, _ := csvReader.FieldPos(0)
-			return dataset, fmt.Errorf("failed to read CSV line %d: %w", line, err)
+			// TODO: Log or otherwise handle errors?
+			// line, _ := csvReader.FieldPos(0)
+			// return dataset, fmt.Errorf("failed to read CSV line %d: %w", line, err)
+			continue
 		}
 
 		if err := processCSVRecord(&dataset, record); err != nil {
