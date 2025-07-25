@@ -3,6 +3,8 @@
 package internal
 
 import (
+	"bufio"
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -21,14 +23,38 @@ func LoadCSVFile(filename string, date *time.Time) (MagnitudeDataset, time.Durat
 	}
 	defer file.Close()
 
+	reader, err := getReaderFromFile(file)
+	if err != nil {
+		return MagnitudeDataset{}, 0, fmt.Errorf("failed to create reader: %w", err)
+	}
+
 	start := time.Now()
-	dataset, err := LoadCSVFromReader(file, date)
+	dataset, err := LoadCSVFromReader(reader, date)
 	if err != nil {
 		return MagnitudeDataset{}, 0, fmt.Errorf("failed to parse CSV: %w", err)
 	}
 	elapsed := time.Since(start)
 
 	return dataset, elapsed, nil
+}
+
+// Get a reader from a file. If the file is gzipped, it will return a gzip reader.
+// This code is borrowed from the gopacket library (pcapgo).
+func getReaderFromFile(file *os.File) (io.Reader, error) {
+	// Check if the file is gzipped by reading the first two bytes.
+	br := bufio.NewReader(file)
+	gzipMagic, err := br.Peek(2)
+	if err != nil {
+		return nil, err
+	}
+
+	const magicGzip1 = 0x1f
+	const magicGzip2 = 0x8b
+
+	if gzipMagic[0] == magicGzip1 && gzipMagic[1] == magicGzip2 {
+		return gzip.NewReader(br)
+	}
+	return br, nil
 }
 
 func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, error) {
