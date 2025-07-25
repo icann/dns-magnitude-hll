@@ -139,12 +139,14 @@ func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress, q
 		dh = newDomain(domain)
 	}
 
-	// Add the source IP to the set of unique source IPs. This set is only for validation
-	// during development, and should be considered for removal later.
-	dataset.extraAllClients[src.truncatedIP] = struct{}{}
-	dh.extraAllClients[src.truncatedIP] = struct{}{}
-	if src.ipAddress.Is6() {
-		dataset.extraV6Clients[src.truncatedIP] = struct{}{}
+	if ExtraDatasetInformation {
+		// Add the source IP to the set of unique source IPs. This set is only for validation
+		// during development, and should be considered for removal later.
+		dataset.extraAllClients[src.truncatedIP] = struct{}{}
+		dh.extraAllClients[src.truncatedIP] = struct{}{}
+		if src.ipAddress.Is6() {
+			dataset.extraV6Clients[src.truncatedIP] = struct{}{}
+		}
 	}
 
 	// Increase queriesCount
