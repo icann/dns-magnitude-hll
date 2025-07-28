@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func LoadCSVFile(filename string, date *time.Time) (MagnitudeDataset, error) {
+func LoadCSVFile(filename string, date *time.Time, verbose bool) (MagnitudeDataset, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return MagnitudeDataset{}, fmt.Errorf("failed to open file %s: %w", filename, err)
@@ -26,7 +26,7 @@ func LoadCSVFile(filename string, date *time.Time) (MagnitudeDataset, error) {
 		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
 	}
 
-	dataset, err := LoadCSVFromReader(reader, date)
+	dataset, err := LoadCSVFromReader(reader, date, verbose)
 	if err != nil {
 		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
 	}
@@ -53,8 +53,8 @@ func getReaderFromFile(file *os.File) (io.Reader, error) {
 	return br, nil
 }
 
-func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, error) {
-	dataset := newDataset()
+func LoadCSVFromReader(reader io.Reader, date *time.Time, verbose bool) (MagnitudeDataset, error) {
+	dataset := newDataset() // Remove verbose parameter
 
 	// Set dataset date - use provided date or current time
 	var datasetTime time.Time
@@ -82,7 +82,7 @@ func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, err
 			continue
 		}
 
-		if err := processCSVRecord(&dataset, record); err != nil {
+		if err := processCSVRecord(&dataset, record, verbose); err != nil {
 			line, _ := csvReader.FieldPos(0)
 			return dataset, fmt.Errorf("failed to process CSV record at line %d: %w", line, err)
 		}
@@ -93,7 +93,7 @@ func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, err
 }
 
 // processCSVRecord processes a single CSV record
-func processCSVRecord(dataset *MagnitudeDataset, record []string) error {
+func processCSVRecord(dataset *MagnitudeDataset, record []string, verbose bool) error {
 	if len(record) < 2 {
 		return fmt.Errorf("CSV record must have at least two fields (client, domain), got %d", len(record))
 	}
@@ -126,7 +126,7 @@ func processCSVRecord(dataset *MagnitudeDataset, record []string) error {
 	}
 
 	// Update statistics with the specified query count
-	dataset.updateStats(domainName, clientIP, queryCount)
+	dataset.updateStats(domainName, clientIP, queryCount, verbose)
 
 	return nil
 }

@@ -76,9 +76,9 @@ Save them to a DNSMAG file (CBOR format).`,
 			}
 
 			if filetype == "csv" {
-				stats, err = internal.LoadCSVFile(inputFile, date)
+				stats, err = internal.LoadCSVFile(inputFile, date, verbose)
 			} else {
-				stats, err = internal.LoadPcap(inputFile, date)
+				stats, err = internal.LoadPcap(inputFile, date, verbose)
 			}
 
 			if err != nil {
