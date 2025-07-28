@@ -3,7 +3,6 @@
 package cmd
 
 import (
-	"bytes"
 	"dnsmag/internal"
 	"fmt"
 	"os"
@@ -17,23 +16,45 @@ var aggregateCmd = &cobra.Command{
 	Long:  `Aggregate domain statistics from multiple DNSMAG files into a single combined dataset.`,
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
+		timing := internal.NewTimingStats()
+
 		var datasets []internal.MagnitudeDataset
+
+		var (
+			top     int
+			verbose bool
+			quiet   bool
+			output  string
+		)
+
+		parseFlags(cmd, map[string]interface{}{
+			"top":     &top,
+			"verbose": &verbose,
+			"quiet":   &quiet,
+			"output":  &output,
+		})
+
+		// Quiet and verbose flags are mutually exclusive
+		if quiet && verbose {
+			fmt.Fprintln(os.Stderr, "Can't be both --quiet and --verbose at the same time")
+			os.Exit(1)
+		}
 
 		// Load all provided CBOR files
 		for _, filename := range args {
+			if verbose {
+				fmt.Printf("Loading dataset from %s\n", filename)
+			}
 			stats, err := internal.LoadDNSMagFile(filename)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to load DNSMAG file %s: %v\n", filename, err)
 				os.Exit(1)
 			}
 			datasets = append(datasets, stats)
-			fmt.Printf("Loaded dataset from %s\n", filename)
 		}
 
-		top, err := cmd.Flags().GetInt("top")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to parse 'top' flag: %v\n", err)
-			os.Exit(1)
+		if len(datasets) > 0 && verbose {
+			fmt.Println()
 		}
 
 		// Aggregate the datasets
@@ -50,28 +71,42 @@ var aggregateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Format and print the aggregated domain statistics
-		var buf bytes.Buffer
-		err = internal.FormatDomainStats(&buf, aggregated, 0)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to format domain statistics: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println(buf.String())
-
 		// Save the aggregated dataset to output file if specified
-		output, err := cmd.Flags().GetString("output")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to parse 'output' flag: %v\n", err)
-			os.Exit(1)
-		}
 		if output != "" {
 			outFilename, err := internal.WriteDNSMagFile(aggregated, output)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to write aggregated dataset to %s: %v\n", output, err)
 				os.Exit(1)
 			}
-			fmt.Printf("Aggregated dataset saved to %s\n", outFilename)
+			if verbose {
+				fmt.Printf("Aggregated dataset saved to %s\n", outFilename)
+			}
+		}
+
+		// Print statistics
+		if !quiet {
+			if len(args) == 1 {
+				fmt.Printf("Statistics for %s:\n", args[0])
+			} else {
+				fmt.Printf("Aggregated statistics for %d files:\n", len(args))
+			}
+			fmt.Println()
+		}
+
+		// Format and print the aggregated domain statistics
+		if err := internal.OutputDomainStats(aggregated, quiet, verbose); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+
+		if !quiet {
+			fmt.Println()
+		}
+
+		// Finish timing and print timing statistics
+		timing.Finish()
+		if err := internal.OutputTimingStats(timing, quiet); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to format timing statistics: %v\n", err)
 		}
 	},
 }
@@ -80,4 +115,6 @@ func init() {
 	rootCmd.AddCommand(aggregateCmd)
 	aggregateCmd.Flags().StringP("output", "o", "", "Output file to save the aggregated dataset (optional)")
 	aggregateCmd.Flags().IntP("top", "n", internal.DefaultDomainCount, "Minimum number of domains required in each dataset")
+	aggregateCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+	aggregateCmd.Flags().BoolP("quiet", "q", false, "Quiet mode")
 }

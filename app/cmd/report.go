@@ -36,21 +36,19 @@ var reportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		source, err := cmd.Flags().GetString("source")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get source flag: %v\n", err)
-			os.Exit(1)
-		}
-		sourceType, err := cmd.Flags().GetString("source-type")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get source-type flag: %v\n", err)
-			os.Exit(1)
-		}
-		output, err := cmd.Flags().GetString("output")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get output flag: %v\n", err)
-			os.Exit(1)
-		}
+		var (
+			source     string
+			sourceType string
+			output     string
+			verbose    bool
+		)
+
+		parseFlags(cmd, map[string]interface{}{
+			"source":      &source,
+			"source-type": &sourceType,
+			"output":      &output,
+			"verbose":     &verbose,
+		})
 
 		// Generate the report in a data structure confirming to the schema (report-schema.yaml)
 		report := internal.GenerateReport(stats, source, sourceType)
@@ -68,7 +66,9 @@ var reportCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "Failed to write report to %s: %v\n", output, err)
 				os.Exit(1)
 			}
-			fmt.Printf("Report written to %s\n", output)
+			if verbose {
+				fmt.Printf("Report written to %s\n", output)
+			}
 		} else {
 			fmt.Println(string(jsonData))
 		}
@@ -80,6 +80,7 @@ func init() {
 	reportCmd.Flags().StringP("source", "s", "", "The name of the provider of the magnitude score (required)")
 	reportCmd.Flags().String("source-type", "authoritative", "Source type of the magnitude score (authoritative or recursive)")
 	reportCmd.Flags().StringP("output", "o", "", "Output file (optional, defaults to stdout)")
+	reportCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
 	if err := reportCmd.MarkFlagRequired("source"); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to mark 'source' flag as required: %v\n", err)
 		os.Exit(1)

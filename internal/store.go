@@ -85,5 +85,8 @@ func LoadDNSMagFile(filename string) (MagnitudeDataset, error) {
 
 	dec := cbor.NewDecoder(file)
 	err = dec.Decode(&stats)
+
+	stats.finaliseStats()
+
 	return stats, err
 }

@@ -14,28 +14,24 @@ import (
 	"time"
 )
 
-func LoadCSVFile(filename string, date *time.Time) (MagnitudeDataset, time.Duration, error) {
-	fmt.Printf("Loading CSV file: %s\n", filename)
-
+func LoadCSVFile(filename string, date *time.Time) (MagnitudeDataset, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to open file %s: %w", filename, err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
 	defer file.Close()
 
 	reader, err := getReaderFromFile(file)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to create reader: %w", err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
 	}
 
-	start := time.Now()
 	dataset, err := LoadCSVFromReader(reader, date)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to parse CSV: %w", err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
 	}
-	elapsed := time.Since(start)
 
-	return dataset, elapsed, nil
+	return dataset, nil
 }
 
 // Get a reader from a file. If the file is gzipped, it will return a gzip reader.

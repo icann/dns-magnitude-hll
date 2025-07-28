@@ -3,7 +3,6 @@
 package cmd
 
 import (
-	"bytes"
 	"dnsmag/internal"
 	"fmt"
 	"os"
@@ -16,8 +15,18 @@ var viewCmd = &cobra.Command{
 	Short: "View and display statistics from a DNSMAG file",
 	Long:  `View domain statistics from a previously saved DNSMAG file and display them.`,
 	Args:  cobra.ExactArgs(1),
-	Run: func(_ *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, args []string) {
 		inputFile := args[0]
+
+		var (
+			verbose bool
+			top     int
+		)
+
+		parseFlags(cmd, map[string]interface{}{
+			"verbose": &verbose,
+			"top":     &top,
+		})
 
 		// Load the CBOR file containing domain statistics (files with .dnsmag extension)
 		stats, err := internal.LoadDNSMagFile(inputFile)
@@ -26,17 +35,23 @@ var viewCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Format and print the domain statistics
-		var buf bytes.Buffer
-		err = internal.FormatDomainStats(&buf, stats, 0)
+		// Truncate the stats to the top N domains
+		err = stats.Truncate(top)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to format domain statistics: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Failed to truncate results: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Println(buf.String())
+
+		// Format and print the domain statistics
+		if err := internal.OutputDomainStats(stats, false, verbose); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(viewCmd)
+	viewCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+	viewCmd.Flags().IntP("top", "n", internal.DefaultDomainCount, "Number of top domains to display")
 }
