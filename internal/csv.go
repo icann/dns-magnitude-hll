@@ -3,6 +3,8 @@
 package internal
 
 import (
+	"bufio"
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -12,27 +14,47 @@ import (
 	"time"
 )
 
-func LoadCSVFile(filename string, date *time.Time) (MagnitudeDataset, time.Duration, error) {
-	fmt.Printf("Loading CSV file: %s\n", filename)
-
+func LoadCSVFile(filename string, date *time.Time, verbose bool) (MagnitudeDataset, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to open file %s: %w", filename, err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
 	defer file.Close()
 
-	start := time.Now()
-	dataset, err := LoadCSVFromReader(file, date)
+	reader, err := getReaderFromFile(file)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to parse CSV: %w", err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
 	}
-	elapsed := time.Since(start)
 
-	return dataset, elapsed, nil
+	dataset, err := LoadCSVFromReader(reader, date, verbose)
+	if err != nil {
+		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
+	}
+
+	return dataset, nil
 }
 
-func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, error) {
-	dataset := newDataset()
+// Get a reader from a file. If the file is gzipped, it will return a gzip reader.
+// This code is borrowed from the gopacket library (pcapgo).
+func getReaderFromFile(file *os.File) (io.Reader, error) {
+	// Check if the file is gzipped by reading the first two bytes.
+	br := bufio.NewReader(file)
+	gzipMagic, err := br.Peek(2)
+	if err != nil {
+		return nil, err
+	}
+
+	const magicGzip1 = 0x1f
+	const magicGzip2 = 0x8b
+
+	if gzipMagic[0] == magicGzip1 && gzipMagic[1] == magicGzip2 {
+		return gzip.NewReader(br)
+	}
+	return br, nil
+}
+
+func LoadCSVFromReader(reader io.Reader, date *time.Time, verbose bool) (MagnitudeDataset, error) {
+	dataset := newDataset() // Remove verbose parameter
 
 	// Set dataset date - use provided date or current time
 	var datasetTime time.Time
@@ -54,11 +76,13 @@ func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, err
 			break
 		}
 		if err != nil {
-			line, _ := csvReader.FieldPos(0)
-			return dataset, fmt.Errorf("failed to read CSV line %d: %w", line, err)
+			// TODO: Log or otherwise handle errors?
+			// line, _ := csvReader.FieldPos(0)
+			// return dataset, fmt.Errorf("failed to read CSV line %d: %w", line, err)
+			continue
 		}
 
-		if err := processCSVRecord(&dataset, record); err != nil {
+		if err := processCSVRecord(&dataset, record, verbose); err != nil {
 			line, _ := csvReader.FieldPos(0)
 			return dataset, fmt.Errorf("failed to process CSV record at line %d: %w", line, err)
 		}
@@ -69,7 +93,7 @@ func LoadCSVFromReader(reader io.Reader, date *time.Time) (MagnitudeDataset, err
 }
 
 // processCSVRecord processes a single CSV record
-func processCSVRecord(dataset *MagnitudeDataset, record []string) error {
+func processCSVRecord(dataset *MagnitudeDataset, record []string, verbose bool) error {
 	if len(record) < 2 {
 		return fmt.Errorf("CSV record must have at least two fields (client, domain), got %d", len(record))
 	}
@@ -102,7 +126,7 @@ func processCSVRecord(dataset *MagnitudeDataset, record []string) error {
 	}
 
 	// Update statistics with the specified query count
-	dataset.updateStats(domainName, clientIP, queryCount)
+	dataset.updateStats(domainName, clientIP, queryCount, verbose)
 
 	return nil
 }

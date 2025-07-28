@@ -80,13 +80,15 @@ func newDataset() MagnitudeDataset {
 }
 
 func newDomain(domain DomainName) domainHll {
-	return domainHll{
+	result := domainHll{
 		Domain:          domain,
 		Hll:             &HLLWrapper{Hll: &hll.Hll{}},
 		ClientsCount:    0,
 		QueriesCount:    0,
 		extraAllClients: make(map[netip.Addr]struct{}),
 	}
+
+	return result
 }
 
 func (dataset *MagnitudeDataset) SortedByMagnitude() []DomainMagnitude {
@@ -128,8 +130,8 @@ func (dataset *MagnitudeDataset) Truncate(maxDomains int) error {
 }
 
 // count a query for a domain and source IP address.
-func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress, queryCount uint64) {
-	if domain == "" {
+func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress, queryCount uint64, verbose bool) {
+	if domain == "" || queryCount == 0 {
 		return
 	}
 
@@ -139,12 +141,14 @@ func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress, q
 		dh = newDomain(domain)
 	}
 
-	// Add the source IP to the set of unique source IPs. This set is only for validation
-	// during development, and should be considered for removal later.
-	dataset.extraAllClients[src.truncatedIP] = struct{}{}
-	dh.extraAllClients[src.truncatedIP] = struct{}{}
-	if src.ipAddress.Is6() {
-		dataset.extraV6Clients[src.truncatedIP] = struct{}{}
+	// Add the source IP to the set of unique source IPs only if verbose mode is enabled
+	// since it uses quite a bit of memory
+	if verbose {
+		dataset.extraAllClients[src.truncatedIP] = struct{}{}
+		dh.extraAllClients[src.truncatedIP] = struct{}{}
+		if src.ipAddress.Is6() {
+			dataset.extraV6Clients[src.truncatedIP] = struct{}{}
+		}
 	}
 
 	// Increase queriesCount
@@ -203,6 +207,16 @@ func AggregateDatasets(datasets []MagnitudeDataset) (MagnitudeDataset, error) {
 		}
 	}
 
+	// Aggregate precise client counts, if present
+	for _, dataset := range datasets {
+		for clientIP := range dataset.extraAllClients {
+			res.extraAllClients[clientIP] = struct{}{}
+		}
+		for clientIP := range dataset.extraV6Clients {
+			res.extraV6Clients[clientIP] = struct{}{}
+		}
+	}
+
 	// Aggregate domain-level statistics
 	for _, dataset := range datasets {
 		res.AllQueriesCount += dataset.AllQueriesCount
@@ -216,6 +230,11 @@ func AggregateDatasets(datasets []MagnitudeDataset) (MagnitudeDataset, error) {
 			this.QueriesCount += domainData.QueriesCount
 			if err := this.Hll.StrictUnion(*domainData.Hll.Hll); err != nil {
 				return MagnitudeDataset{}, fmt.Errorf("failed to union HLL for domain %s: %w", domain, err)
+			}
+
+			// Aggregate domain query client information, if present
+			for clientIP := range domainData.extraAllClients {
+				this.extraAllClients[clientIP] = struct{}{}
 			}
 
 			res.Domains[domain] = this

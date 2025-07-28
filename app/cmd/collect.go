@@ -3,7 +3,6 @@
 package cmd
 
 import (
-	"bytes"
 	"dnsmag/internal"
 	"fmt"
 	"os"
@@ -19,26 +18,25 @@ var collectCmd = &cobra.Command{
 Save them to a DNSMAG file (CBOR format).`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		top, err := cmd.Flags().GetInt("top")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get top flag: %v\n", err)
-			os.Exit(1)
-		}
-		output, err := cmd.Flags().GetString("output")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get output flag: %v\n", err)
-			os.Exit(1)
-		}
-		filetype, err := cmd.Flags().GetString("filetype")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get filetype flag: %v\n", err)
-			os.Exit(1)
-		}
-		dateStr, err := cmd.Flags().GetString("date")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get date flag: %v\n", err)
-			os.Exit(1)
-		}
+		timing := internal.NewTimingStats()
+
+		var (
+			top      int
+			output   string
+			filetype string
+			dateStr  string
+			verbose  bool
+			quiet    bool
+		)
+
+		parseFlags(cmd, map[string]interface{}{
+			"top":      &top,
+			"output":   &output,
+			"filetype": &filetype,
+			"date":     &dateStr,
+			"verbose":  &verbose,
+			"quiet":    &quiet,
+		})
 
 		// Validate filetype
 		if filetype != "pcap" && filetype != "csv" {
@@ -57,31 +55,49 @@ Save them to a DNSMAG file (CBOR format).`,
 			date = &parsedDate
 		}
 
+		// Quiet and verbose flags are mutually exclusive
+		if quiet && verbose {
+			fmt.Fprintln(os.Stderr, "Can't be both --quiet and --verbose at the same time")
+			os.Exit(1)
+		}
+
 		// Collect all datasets from input files
 		var datasets []internal.MagnitudeDataset
-		var totalElapsed time.Duration
+
+		timing.StartParsing()
 
 		// Process each input file
 		for _, inputFile := range args {
 			var stats internal.MagnitudeDataset
-			var elapsed time.Duration
+			var err error
+
+			if verbose {
+				fmt.Printf("Loading %s file: %s\n", filetype, inputFile)
+			}
 
 			if filetype == "csv" {
-				stats, elapsed, err = internal.LoadCSVFile(inputFile, date)
+				stats, err = internal.LoadCSVFile(inputFile, date, verbose)
 			} else {
-				stats, elapsed, err = internal.LoadPcap(inputFile, date)
+				stats, err = internal.LoadPcap(inputFile, date, verbose)
 			}
 
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to load %s file %s: %v\n", filetype, inputFile, err)
 				os.Exit(1)
 			}
+
 			datasets = append(datasets, stats)
-			totalElapsed += elapsed
+		}
+
+		timing.StopParsing()
+
+		if len(datasets) > 0 && verbose {
+			fmt.Println()
 		}
 
 		// Aggregate all datasets into one
 		var res internal.MagnitudeDataset
+		var err error
 
 		if len(datasets) == 1 {
 			res = datasets[0]
@@ -100,31 +116,40 @@ Save them to a DNSMAG file (CBOR format).`,
 			os.Exit(1)
 		}
 
-		// Format and print the domain statistics
-		var buf bytes.Buffer
-		err = internal.FormatDomainStats(&buf, res, totalElapsed)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to format domain statistics: %v\n", err)
-			os.Exit(1)
-		}
-		if len(args) == 1 {
-			fmt.Printf("Statistics for %s:\n", args[0])
-		} else {
-			fmt.Printf("Aggregated statistics for %d files:\n", len(args))
-		}
-		fmt.Println(buf.String())
-		fmt.Println("---")
-
 		// Write stats to DNSMAG file only if output is specified
+		// When no output file is specified, only show stats on stdout
 		if output != "" {
 			_, err := internal.WriteDNSMagFile(res, output)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to write DNSMAG to %s: %v\n", output, err)
 			} else {
-				fmt.Printf("Saved aggregated statistics to %s\n", output)
+				if !quiet {
+					fmt.Printf("Saved aggregated statistics to %s\n", output)
+				}
 			}
 		}
-		// When no output file is specified, only show stats on stdout
+
+		// Print statistics
+		if !quiet {
+			if len(args) == 1 {
+				fmt.Printf("Statistics for %s:\n", args[0])
+			} else {
+				fmt.Printf("Aggregated statistics for %d files:\n", len(args))
+			}
+		}
+		if err := internal.OutputDomainStats(res, quiet, verbose); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+		if !quiet {
+			fmt.Println()
+		}
+
+		// Print timing statistics at the end
+		timing.Finish()
+		if err := internal.OutputTimingStats(timing, quiet); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to format timing statistics: %v\n", err)
+		}
 	},
 }
 
@@ -134,4 +159,6 @@ func init() {
 	collectCmd.Flags().StringP("output", "o", "", "Output file to save the aggregated dataset (optional, only shows stats on stdout if not specified)")
 	collectCmd.Flags().String("filetype", "pcap", "Input file type: 'pcap' or 'csv'")
 	collectCmd.Flags().String("date", "", "Date for CSV data in YYYY-MM-DD format (optional, defaults to data from input files or the current date)")
+	collectCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+	collectCmd.Flags().BoolP("quiet", "q", false, "Quiet mode")
 }

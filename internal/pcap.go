@@ -13,31 +13,28 @@ import (
 	"github.com/google/gopacket/pcapgo"
 )
 
-func LoadPcap(filename string, date *time.Time) (MagnitudeDataset, time.Duration, error) {
-	fmt.Printf("Loading pcap file: %s\n", filename)
-
+func LoadPcap(filename string, date *time.Time, verbose bool) (MagnitudeDataset, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to open file %s: %w", filename, err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
 	defer file.Close()
 
 	reader, err := pcapgo.NewReader(file)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to create pcap reader: %w", err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to create pcap reader: %w", err)
 	}
 
-	start := time.Now()
-	stats, err := processPackets(reader, date)
+	stats, err := processPackets(reader, date, verbose)
 	if err != nil {
-		return MagnitudeDataset{}, 0, fmt.Errorf("failed to process packets: %w", err)
+		return MagnitudeDataset{}, fmt.Errorf("failed to process packets: %w", err)
 	}
-	elapsed := time.Since(start)
-	return stats, elapsed, nil
+
+	return stats, nil
 }
 
 // Count DNS domain queries per domain and unique source IPs
-func processPackets(reader *pcapgo.Reader, date *time.Time) (MagnitudeDataset, error) {
+func processPackets(reader *pcapgo.Reader, date *time.Time, verbose bool) (MagnitudeDataset, error) {
 	dataset := newDataset()
 	dateSet := false
 
@@ -71,7 +68,7 @@ func processPackets(reader *pcapgo.Reader, date *time.Time) (MagnitudeDataset, e
 					continue
 				}
 
-				dataset.updateStats(name, src, 1)
+				dataset.updateStats(name, src, 1, verbose)
 			}
 		}
 	}

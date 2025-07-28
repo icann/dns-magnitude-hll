@@ -1,7 +1,19 @@
 {
+    "cSpell.language": "en-GB",
+    "cSpell.dictionaries": [
+        "en-gb"
+    ],
     "cSpell.words": [
         "CBOR",
-        "dnsmag"
+        "dnsmag",
+        "Fredrik",
+        "fxamacker",
+        "gopacket",
+        "nosec",
+        "pcapgo",
+        "segmentio",
+        "Thulin",
+        "zeebo"
     ],
     "go.lintTool": "golangci-lint"
 }
