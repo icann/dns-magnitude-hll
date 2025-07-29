@@ -32,7 +32,7 @@ type MagnitudeDataset struct {
 	Domains           map[DomainName]domainHll `cbor:"domains"`
 	extraAllClients   map[netip.Addr]struct{}  // All clients, only used when printing stats in collect command
 	extraV6Clients    map[netip.Addr]struct{}  // IPv6 clients, only used when printing stats in collect command
-	extraDomainsCount uint                     // Number of unique domains before any truncation
+	extraDomainsCount uint64                   // Number of unique domains before any truncation
 }
 
 // Per-domain data
@@ -173,7 +173,7 @@ func (dataset *MagnitudeDataset) finaliseStats() {
 	// Update the global clientsCount
 	dataset.AllClientsCount = dataset.AllClientsHll.Cardinality()
 	// Store number of unique domains before any truncation
-	dataset.extraDomainsCount = uint(len(dataset.Domains))
+	dataset.extraDomainsCount = uint64(len(dataset.Domains))
 }
 
 func (dataset *MagnitudeDataset) DateString() string {
