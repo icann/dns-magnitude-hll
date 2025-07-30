@@ -65,11 +65,7 @@ var aggregateCmd = &cobra.Command{
 		}
 
 		// Truncate the stats to the top N domains
-		err = aggregated.Truncate(top)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
+		aggregated.Truncate(top)
 
 		// Save the aggregated dataset to output file if specified
 		if output != "" {

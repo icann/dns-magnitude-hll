@@ -11,27 +11,26 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
-func LoadCSVFile(filename string, date *time.Time, verbose bool) (MagnitudeDataset, error) {
+func LoadCSVFile(filename string, collector *Collector) error {
 	file, err := os.Open(filename)
 	if err != nil {
-		return MagnitudeDataset{}, fmt.Errorf("failed to open file %s: %w", filename, err)
+		return fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
 	defer file.Close()
 
 	reader, err := getReaderFromFile(file)
 	if err != nil {
-		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
+		return fmt.Errorf("failed to parse CSV: %w", err)
 	}
 
-	dataset, err := LoadCSVFromReader(reader, date, verbose)
+	err = LoadCSVFromReader(reader, collector)
 	if err != nil {
-		return MagnitudeDataset{}, fmt.Errorf("failed to parse CSV: %w", err)
+		return fmt.Errorf("failed to parse CSV: %w", err)
 	}
 
-	return dataset, nil
+	return nil
 }
 
 // Get a reader from a file. If the file is gzipped, it will return a gzip reader.
@@ -53,18 +52,7 @@ func getReaderFromFile(file *os.File) (io.Reader, error) {
 	return br, nil
 }
 
-func LoadCSVFromReader(reader io.Reader, date *time.Time, verbose bool) (MagnitudeDataset, error) {
-	dataset := newDataset() // Remove verbose parameter
-
-	// Set dataset date - use provided date or current time
-	var datasetTime time.Time
-	if date != nil {
-		datasetTime = date.UTC()
-	} else {
-		datasetTime = time.Now().UTC()
-	}
-	dataset.Date = &TimeWrapper{Time: datasetTime}
-
+func LoadCSVFromReader(reader io.Reader, collector *Collector) error {
 	csvReader := csv.NewReader(reader)
 	csvReader.Comment = '#'
 	csvReader.TrimLeadingSpace = true
@@ -77,23 +65,21 @@ func LoadCSVFromReader(reader io.Reader, date *time.Time, verbose bool) (Magnitu
 		}
 		if err != nil {
 			// TODO: Log or otherwise handle errors?
-			// line, _ := csvReader.FieldPos(0)
-			// return dataset, fmt.Errorf("failed to read CSV line %d: %w", line, err)
 			continue
 		}
 
-		if err := processCSVRecord(&dataset, record, verbose); err != nil {
+		if err := processCSVRecord(collector, record); err != nil {
 			line, _ := csvReader.FieldPos(0)
-			return dataset, fmt.Errorf("failed to process CSV record at line %d: %w", line, err)
+			return fmt.Errorf("failed to process CSV record at line %d: %w", line, err)
 		}
 	}
 
-	dataset.finaliseStats()
-	return dataset, nil
+	collector.Finalize()
+	return nil
 }
 
 // processCSVRecord processes a single CSV record
-func processCSVRecord(dataset *MagnitudeDataset, record []string, verbose bool) error {
+func processCSVRecord(collector *Collector, record []string) error {
 	if len(record) < 2 {
 		return fmt.Errorf("CSV record must have at least two fields (client, domain), got %d", len(record))
 	}
@@ -126,7 +112,7 @@ func processCSVRecord(dataset *MagnitudeDataset, record []string, verbose bool) 
 	}
 
 	// Update statistics with the specified query count
-	dataset.updateStats(domainName, clientIP, queryCount, verbose)
+	collector.ProcessRecord(domainName, clientIP, queryCount)
 
 	return nil
 }

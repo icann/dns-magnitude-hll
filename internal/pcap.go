@@ -6,49 +6,43 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
-	"time"
+	"runtime"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
 )
 
-func LoadPcap(filename string, date *time.Time, verbose bool) (MagnitudeDataset, error) {
+func LoadPcap(filename string, collector *Collector) error {
 	file, err := os.Open(filename)
 	if err != nil {
-		return MagnitudeDataset{}, fmt.Errorf("failed to open file %s: %w", filename, err)
+		return fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
 	defer file.Close()
 
 	reader, err := pcapgo.NewReader(file)
 	if err != nil {
-		return MagnitudeDataset{}, fmt.Errorf("failed to create pcap reader: %w", err)
+		return fmt.Errorf("failed to create pcap reader: %w", err)
 	}
 
-	stats, err := processPackets(reader, date, verbose)
+	err = processPackets(reader, collector)
 	if err != nil {
-		return MagnitudeDataset{}, fmt.Errorf("failed to process packets: %w", err)
+		return fmt.Errorf("failed to process packets: %w", err)
 	}
 
-	return stats, nil
+	return nil
 }
 
 // Count DNS domain queries per domain and unique source IPs
-func processPackets(reader *pcapgo.Reader, date *time.Time, verbose bool) (MagnitudeDataset, error) {
-	dataset := newDataset()
+func processPackets(reader *pcapgo.Reader, collector *Collector) error {
 	dateSet := false
-
-	if date != nil {
-		dataset.Date = &TimeWrapper{Time: date.UTC()}
-		dateSet = true
-	}
 
 	packetSource := gopacket.NewPacketSource(reader, reader.LinkType())
 	for packet := range packetSource.Packets() {
 		if !dateSet {
 			// Set the dataset date from first packet's timestamp if no date was provided
 			packetTime := packet.Metadata().Timestamp
-			dataset.Date = &TimeWrapper{Time: packetTime.UTC()}
+			collector.SetDate(&packetTime)
 			dateSet = true
 		}
 
@@ -68,14 +62,15 @@ func processPackets(reader *pcapgo.Reader, date *time.Time, verbose bool) (Magni
 					continue
 				}
 
-				dataset.updateStats(name, src, 1, verbose)
+				collector.ProcessRecord(name, src, 1)
 			}
 		}
 	}
 
-	dataset.finaliseStats()
+	collector.Finalize()
+	runtime.GC()
 
-	return dataset, nil
+	return nil
 }
 
 // extractSrcIP extracts the source IP address from a packet as IPAddress (masked)

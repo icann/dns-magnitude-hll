@@ -36,11 +36,7 @@ var viewCmd = &cobra.Command{
 		}
 
 		// Truncate the stats to the top N domains
-		err = stats.Truncate(top)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to truncate results: %v\n", err)
-			os.Exit(1)
-		}
+		stats.Truncate(top)
 
 		// Format and print the domain statistics
 		if err := internal.OutputDomainStats(stats, false, verbose); err != nil {
