@@ -120,5 +120,5 @@ func init() {
 	collectCmd.Flags().String("date", "", "Date for CSV data in YYYY-MM-DD format (optional, defaults to data from input files or the current date)")
 	collectCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
 	collectCmd.Flags().BoolP("quiet", "q", false, "Quiet mode")
-	collectCmd.Flags().IntP("chunk", "c", internal.DefaultCollectDomainsChunk, "Number of domains after which to truncate results (in millions, 0 = no truncation)")
+	collectCmd.Flags().IntP("chunk", "c", internal.DefaultCollectDomainsChunk, "Number of queries to process in one go (in millions, 0 = unlimited)")
 }
