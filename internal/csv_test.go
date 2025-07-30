@@ -196,7 +196,8 @@ func buildExpectedDataset(date time.Time, totalQueries uint64, domains []struct 
 	domain     DomainName
 	queryCount uint64
 	clientIPs  []string
-}, allClientIPs []string, v6ClientIPs []string) MagnitudeDataset {
+}, allClientIPs []string, v6ClientIPs []string,
+) MagnitudeDataset {
 	expected := newDataset()
 	expected.Date = &TimeWrapper{Time: date}
 	expected.AllQueriesCount = totalQueries
