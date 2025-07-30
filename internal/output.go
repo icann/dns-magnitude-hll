@@ -49,6 +49,11 @@ func printTable(w io.Writer, rows []TableRow) error {
 	}
 
 	for _, row := range rows {
+		if row.lhs == "" {
+			// separator
+			fmt.Fprintln(w)
+			continue
+		}
 		if _, err := fmt.Fprintf(w, "%-*s : %s\n", maxLHSWidth, row.lhs, row.rhs); err != nil {
 			return err
 		}
@@ -56,13 +61,14 @@ func printTable(w io.Writer, rows []TableRow) error {
 	return nil
 }
 
-// FormatDomainStats prepares domain statistics for printing.
-func FormatDomainStats(stats MagnitudeDataset) ([]TableRow, []string, error) {
-	// Build table rows for global statistics
+// formatDomainRecords traverses domains and builds domain information records
+func formatDomainRecords(stats MagnitudeDataset) ([]TableRow, []string) {
 	var table []TableRow
 	var domains []string
-
 	var domainHllSize uint
+
+	// Add domain-specific table rows if needed
+	table = append(table, TableRow{"Domain information", ""})
 
 	for _, dm := range stats.SortedByMagnitude() {
 		domainHllSize += uint(len(dm.DomainHll.Hll.ToBytes()))
@@ -76,16 +82,26 @@ func FormatDomainStats(stats MagnitudeDataset) ([]TableRow, []string, error) {
 		)
 		domains = append(domains, domainInfo)
 	}
+	table = append(table, TableRow{"Per domain total HLL storage size", fmt.Sprintf("%d bytes", domainHllSize)})
+
+	return table, domains
+}
+
+// formatGeneralStats builds general dataset statistics table rows
+func formatGeneralStats(stats MagnitudeDataset) []TableRow {
+	var table []TableRow
 
 	table = append(table, TableRow{"Dataset statistics", ""})
 	table = append(table, TableRow{"Date", stats.DateString()})
 	table = append(table, TableRow{"Total queries", fmt.Sprintf("%d", stats.AllQueriesCount)})
 
-	if stats.extraDomainsCount > 0 {
-		// If stats.extraDomainsCount is set, it is the number of domains before truncation
-		table = append(table, TableRow{"Total domains", fmt.Sprintf("%d (truncated: %d)", stats.extraDomainsCount, len(stats.Domains))})
+	numDomains := uint64(len(stats.Domains))
+	if len(stats.extraAllDomains) > 0 {
+		numDomains = uint64(len(stats.extraAllDomains))
+		// If stats.extraAllDomains is set, it contains all domains before truncation
+		table = append(table, TableRow{"Total domains", fmt.Sprintf("%d (truncated: %d)", numDomains, len(stats.Domains))})
 	} else {
-		table = append(table, TableRow{"Total domains", fmt.Sprintf("%d", len(stats.Domains))})
+		table = append(table, TableRow{"Total domains", fmt.Sprintf("%d", numDomains)})
 	}
 
 	table = append(table, TableRow{"Total unique source IPs", countAsString(uint(len(stats.extraAllClients)), uint(stats.AllClientsCount))})
@@ -96,7 +112,6 @@ func FormatDomainStats(stats MagnitudeDataset) ([]TableRow, []string, error) {
 	}
 
 	table = append(table, TableRow{"All clients HLL storage size", fmt.Sprintf("%d bytes", len(stats.AllClientsHll.ToBytes()))})
-	table = append(table, TableRow{"Per domain total HLL storage size", fmt.Sprintf("%d bytes", domainHllSize)})
 
 	// Add memory usage statistics
 	var m runtime.MemStats
@@ -104,6 +119,22 @@ func FormatDomainStats(stats MagnitudeDataset) ([]TableRow, []string, error) {
 	heapStr := fmt.Sprintf("%d MB", m.HeapAlloc/1024/1024)
 	maxStr := fmt.Sprintf("%d MB", m.HeapSys/1024/1024)
 	table = append(table, TableRow{"Memory allocated", fmt.Sprintf("%s (peak estimated: %s)", heapStr, maxStr)})
+	table = append(table, TableRow{"Memory allocated per domain", fmt.Sprintf("%d B (peak)", m.HeapSys/numDomains)})
+
+	return table
+}
+
+// FormatDomainStats prepares domain statistics for printing.
+func FormatDomainStats(stats MagnitudeDataset) ([]TableRow, []string, error) {
+	domainTable, domains := formatDomainRecords(stats)
+	generalTable := formatGeneralStats(stats)
+
+	var table []TableRow
+
+	// Concatenate tables
+	table = append(table, domainTable...)
+	table = append(table, TableRow{})
+	table = append(table, generalTable...)
 
 	return table, domains, nil
 }

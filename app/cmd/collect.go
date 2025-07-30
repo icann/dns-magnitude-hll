@@ -27,15 +27,17 @@ Save them to a DNSMAG file (CBOR format).`,
 			dateStr  string
 			verbose  bool
 			quiet    bool
+			chunk    int
 		)
 
-		parseFlags(cmd, map[string]interface{}{
+		parseFlags(cmd, map[string]any{
 			"top":      &top,
 			"output":   &output,
 			"filetype": &filetype,
 			"date":     &dateStr,
 			"verbose":  &verbose,
 			"quiet":    &quiet,
+			"chunk":    &chunk,
 		})
 
 		// Validate filetype
@@ -62,64 +64,21 @@ Save them to a DNSMAG file (CBOR format).`,
 		}
 
 		// Collect all datasets from input files
-		var datasets []internal.MagnitudeDataset
-
-		timing.StartParsing()
-
-		// Process each input file
-		for _, inputFile := range args {
-			var stats internal.MagnitudeDataset
-			var err error
-
-			if verbose {
-				fmt.Printf("Loading %s file: %s\n", filetype, inputFile)
-			}
-
-			if filetype == "csv" {
-				stats, err = internal.LoadCSVFile(inputFile, date, verbose)
-			} else {
-				stats, err = internal.LoadPcap(inputFile, date, verbose)
-			}
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to load %s file %s: %v\n", filetype, inputFile, err)
-				os.Exit(1)
-			}
-
-			datasets = append(datasets, stats)
-		}
-
-		timing.StopParsing()
-
-		if len(datasets) > 0 && verbose {
-			fmt.Println()
-		}
-
-		// Aggregate all datasets into one
-		var res internal.MagnitudeDataset
-		var err error
-
-		if len(datasets) == 1 {
-			res = datasets[0]
-		} else {
-			res, err = internal.AggregateDatasets(datasets)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to aggregate datasets: %v\n", err)
-				os.Exit(1)
-			}
-		}
-
-		// Truncate the aggregated stats to the top N domains
-		err = res.Truncate(top)
+		collector := internal.NewCollector(top, chunk*1000*1000, verbose, date)
+		err := collector.ProcessFiles(args, filetype, timing)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to truncate results: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
+		}
+
+		if verbose {
+			fmt.Println()
 		}
 
 		// Write stats to DNSMAG file only if output is specified
 		// When no output file is specified, only show stats on stdout
 		if output != "" {
-			_, err := internal.WriteDNSMagFile(res, output)
+			_, err := internal.WriteDNSMagFile(collector.Result, output)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to write DNSMAG to %s: %v\n", output, err)
 			} else {
@@ -137,7 +96,7 @@ Save them to a DNSMAG file (CBOR format).`,
 				fmt.Printf("Aggregated statistics for %d files:\n", len(args))
 			}
 		}
-		if err := internal.OutputDomainStats(res, quiet, verbose); err != nil {
+		if err := internal.OutputDomainStats(collector.Result, quiet, verbose); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}
@@ -161,4 +120,5 @@ func init() {
 	collectCmd.Flags().String("date", "", "Date for CSV data in YYYY-MM-DD format (optional, defaults to data from input files or the current date)")
 	collectCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
 	collectCmd.Flags().BoolP("quiet", "q", false, "Quiet mode")
+	collectCmd.Flags().IntP("chunk", "c", internal.DefaultCollectDomainsChunk, "Number of queries to process in one go (in millions, 0 = unlimited)")
 }
