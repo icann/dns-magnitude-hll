@@ -34,6 +34,7 @@ func TestLoadCSVFromReader(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
+	collector.finalise()
 	dataset := collector.Result
 
 	if dataset.Date.Time != testDate {
@@ -78,6 +79,7 @@ func TestLoadCSVFromReader_VerboseMode(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
+	collector.finalise()
 	dataset := collector.Result
 
 	if dataset.Date.Time != testDate {
@@ -241,6 +243,7 @@ func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
+	collector.finalise()
 	dataset := collector.Result
 
 	// Build expected dataset using helper function

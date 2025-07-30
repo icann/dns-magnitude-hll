@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
-	"runtime"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -66,9 +65,6 @@ func processPackets(reader *pcapgo.Reader, collector *Collector) error {
 			}
 		}
 	}
-
-	collector.Finalize()
-	runtime.GC()
 
 	return nil
 }

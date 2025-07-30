@@ -74,7 +74,6 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector) error {
 		}
 	}
 
-	collector.Finalize()
 	return nil
 }
 

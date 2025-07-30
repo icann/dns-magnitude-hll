@@ -73,7 +73,7 @@ func (c *Collector) SetDate(date *time.Time) {
 	}
 }
 
-func (c *Collector) Finalize() {
+func (c *Collector) finalise() {
 	c.migrateCurrent()
 
 	// Truncate the aggregated stats to the top N domains
@@ -103,9 +103,9 @@ func (c *Collector) ProcessFiles(args []string, filetype string, timing *TimingS
 		}
 	}
 
-	timing.StopParsing()
+	c.finalise()
 
-	c.Result.finaliseStats()
+	timing.StopParsing()
 
 	return nil
 }
