@@ -8,7 +8,7 @@ import (
 )
 
 // parseFlags parses command flags in a table-driven manner
-func parseFlags(cmd *cobra.Command, flags map[string]interface{}) {
+func parseFlags(cmd *cobra.Command, flags map[string]any) {
 	for name, dest := range flags {
 		var err error
 		switch v := dest.(type) {

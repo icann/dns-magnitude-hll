@@ -27,7 +27,7 @@ var aggregateCmd = &cobra.Command{
 			output  string
 		)
 
-		parseFlags(cmd, map[string]interface{}{
+		parseFlags(cmd, map[string]any{
 			"top":     &top,
 			"verbose": &verbose,
 			"quiet":   &quiet,

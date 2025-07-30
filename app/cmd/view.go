@@ -23,7 +23,7 @@ var viewCmd = &cobra.Command{
 			top     int
 		)
 
-		parseFlags(cmd, map[string]interface{}{
+		parseFlags(cmd, map[string]any{
 			"verbose": &verbose,
 			"top":     &top,
 		})

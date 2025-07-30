@@ -43,7 +43,7 @@ var reportCmd = &cobra.Command{
 			verbose    bool
 		)
 
-		parseFlags(cmd, map[string]interface{}{
+		parseFlags(cmd, map[string]any{
 			"source":      &source,
 			"source-type": &sourceType,
 			"output":      &output,
