@@ -28,7 +28,8 @@ func TestLoadCSVFromReader(t *testing.T) {
 	testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
 
 	verbose := false
-	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
@@ -73,7 +74,8 @@ func TestLoadCSVFromReader_VerboseMode(t *testing.T) {
 	testDate := time.Date(2007, 9, 9, 0, 0, 0, 0, time.UTC)
 
 	verbose := true
-	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
@@ -123,7 +125,8 @@ func TestLoadCSVFromReader_InvalidRecord(t *testing.T) {
 
 	reader := strings.NewReader(csvData)
 
-	collector := NewCollector(DefaultDomainCount, 100000, false, nil)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err == nil {
 		t.Error("Expected error for invalid CSV record, got nil")
@@ -170,7 +173,8 @@ func TestProcessCSVRecord_ErrorCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := NewCollector(DefaultDomainCount, 100000, false, nil)
+			timing := NewTimingStats()
+			collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
 			err := processCSVRecord(collector, tt.record)
 
 			dataset := collector.Result
@@ -238,7 +242,8 @@ func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
 	reader := strings.NewReader(csvData)
 	testDate := time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)
 
-	collector := NewCollector(DefaultDomainCount, 100000, true, &testDate)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, true, &testDate, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
@@ -321,7 +326,7 @@ func TestCollectorChunking(t *testing.T) {
 	tests := []struct {
 		name           string
 		numIPs         uint64
-		expectedChunks int // Expected number of chunks processed
+		expectedChunks uint // Expected number of chunks processed
 	}{
 		{
 			name:           "90 IPs chunked",
@@ -369,10 +374,10 @@ func TestCollectorChunking(t *testing.T) {
 
 			// Load temp file using a Collector
 			testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
-			collector := NewCollector(DefaultDomainCount, chunkSize, true, &testDate)
 			timing := NewTimingStats()
+			collector := NewCollector(DefaultDomainCount, chunkSize, true, &testDate, timing)
 
-			err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv", timing)
+			err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv")
 			if err != nil {
 				t.Fatalf("ProcessFiles failed: %v", err)
 			}

@@ -10,23 +10,30 @@ import (
 )
 
 type Collector struct {
-	topCount  int
-	chunkSize int
-	verbose   bool
-	current   MagnitudeDataset
-	Result    MagnitudeDataset // Resulting dataset after processing
-	count     int              // Count of processed records
-	chunks    int              // Number of chunks processed
+	topCount    int
+	chunkSize   uint
+	verbose     bool
+	current     MagnitudeDataset
+	Result      MagnitudeDataset // Resulting dataset after processing
+	recordCount uint             // Count of processed records
+	chunks      uint             // Number of chunks processed
+	timing      *TimingStats     // Timing statistics
 }
 
-func NewCollector(topCount, chunkSize int, verbose bool, date *time.Time) *Collector {
+func NewCollector(topCount, chunkSize int, verbose bool, date *time.Time, timing *TimingStats) *Collector {
 	c := &Collector{
-		topCount:  topCount,
-		chunkSize: chunkSize,
-		verbose:   verbose,
-		current:   newDataset(),
-		Result:    newDataset(),
-		chunks:    0,
+		topCount: topCount,
+		chunkSize: func() uint {
+			if chunkSize < 0 {
+				return 0
+			}
+			return uint(chunkSize)
+		}(),
+		verbose: verbose,
+		current: newDataset(),
+		Result:  newDataset(),
+		chunks:  0,
+		timing:  timing,
 	}
 	c.SetDate(date)
 	return c
@@ -34,8 +41,8 @@ func NewCollector(topCount, chunkSize int, verbose bool, date *time.Time) *Colle
 
 func (c *Collector) ProcessRecord(domain DomainName, src IPAddress, queryCount uint64) {
 	c.current.updateStats(domain, src, queryCount, c.verbose)
-	c.count++
-	if c.chunkSize != 0 && c.count%c.chunkSize == 0 {
+	c.recordCount++
+	if c.chunkSize != 0 && c.recordCount%c.chunkSize == 0 {
 		c.migrateCurrent()
 		c.chunks++
 	}
@@ -82,8 +89,8 @@ func (c *Collector) finalise() {
 }
 
 // ProcessFiles processes multiple input files into collector.Result
-func (c *Collector) ProcessFiles(args []string, filetype string, timing *TimingStats) error {
-	timing.StartParsing()
+func (c *Collector) ProcessFiles(args []string, filetype string) error {
+	c.timing.StartParsing()
 
 	// Process each input file
 	for _, inputFile := range args {
@@ -105,7 +112,7 @@ func (c *Collector) ProcessFiles(args []string, filetype string, timing *TimingS
 
 	c.finalise()
 
-	timing.StopParsing()
+	c.timing.StopParsing()
 
 	return nil
 }

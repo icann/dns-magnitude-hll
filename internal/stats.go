@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"runtime"
 	"time"
 )
@@ -67,9 +66,6 @@ func formatDomainRecords(stats MagnitudeDataset) ([]TableRow, []string) {
 	var domains []string
 	var domainHllSize uint
 
-	// Add domain-specific table rows if needed
-	table = append(table, TableRow{"Domain information", ""})
-
 	for _, dm := range stats.SortedByMagnitude() {
 		domainHllSize += uint(len(dm.DomainHll.Hll.ToBytes()))
 
@@ -111,8 +107,6 @@ func formatGeneralStats(stats MagnitudeDataset) []TableRow {
 		table = append(table, TableRow{"Total unique v6 source IPs", fmt.Sprintf("%d", uint(len(stats.extraV6Clients)))})
 	}
 
-	table = append(table, TableRow{"All clients HLL storage size", fmt.Sprintf("%d bytes", len(stats.AllClientsHll.ToBytes()))})
-
 	// Add memory usage statistics
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -120,6 +114,8 @@ func formatGeneralStats(stats MagnitudeDataset) []TableRow {
 	maxStr := fmt.Sprintf("%d MB", m.HeapSys/1024/1024)
 	table = append(table, TableRow{"Memory allocated", fmt.Sprintf("%s (peak estimated: %s)", heapStr, maxStr)})
 	table = append(table, TableRow{"Memory allocated per domain", fmt.Sprintf("%d B (peak)", m.HeapSys/numDomains)})
+
+	table = append(table, TableRow{"All clients HLL storage size", fmt.Sprintf("%d bytes", len(stats.AllClientsHll.ToBytes()))})
 
 	return table
 }
@@ -132,59 +128,91 @@ func FormatDomainStats(stats MagnitudeDataset) ([]TableRow, []string, error) {
 	var table []TableRow
 
 	// Concatenate tables
-	table = append(table, domainTable...)
-	table = append(table, TableRow{})
 	table = append(table, generalTable...)
+	table = append(table, domainTable...)
 
 	return table, domains, nil
 }
 
 // FormatTimingStats formats timing statistics as table rows
-func FormatTimingStats(timing *TimingStats) []TableRow {
+func FormatTimingStats(timing *TimingStats, recordCount uint) []TableRow {
 	var table []TableRow
 
 	table = append(table, TableRow{"Timing statistics", ""})
 	table = append(table, TableRow{"Total execution time", timing.TotalElapsed.Truncate(time.Millisecond).String()})
 	if timing.ParsingElapsed > 0 {
-		overhead := timing.TotalElapsed - timing.ParsingElapsed
 		table = append(table, TableRow{"File parsing time", timing.ParsingElapsed.Truncate(time.Millisecond).String()})
-		table = append(table, TableRow{"Processing overhead", overhead.Truncate(time.Millisecond).String()})
+
+		if recordCount > 0 {
+			recordsPerSecond := float64(recordCount) / timing.TotalElapsed.Seconds()
+			table = append(table, TableRow{"Records processed per second", fmt.Sprintf("%.0f", recordsPerSecond)})
+		}
 	}
 
 	return table
 }
 
-// OutputDomainStats formats and prints domain statistics based on flags
-func OutputDomainStats(stats MagnitudeDataset, quiet, verbose bool) error {
+// OutputDatasetStats formats and prints statistics from a MagnitudeDataset
+func OutputDatasetStats(w io.Writer, stats MagnitudeDataset, quiet, verbose bool) error {
 	if quiet {
 		return nil // Skip output in quiet mode
 	}
 
 	table, domains, err := FormatDomainStats(stats)
 	if err != nil {
-		return fmt.Errorf("failed to format domain statistics: %w", err)
+		return fmt.Errorf("failed to format dataset statistics: %w", err)
 	}
 
 	if verbose && len(domains) > 0 {
-		fmt.Println()
-		fmt.Println("Domain counts:")
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Domain counts:")
 		for _, domain := range domains {
-			fmt.Println(domain)
+			fmt.Fprintln(w, domain)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 
-	return printTable(os.Stdout, table)
+	return printTable(w, table)
+}
+
+// OutputCollectorStats formats and prints both dataset and timing statistics for collection operations
+func OutputCollectorStats(w io.Writer, collector *Collector, quiet, verbose bool, args []string) error {
+	if quiet {
+		return nil // Skip output in quiet mode
+	}
+
+	if len(args) == 1 {
+		fmt.Fprintf(w, "Statistics for %s:\n", args[0])
+	} else {
+		fmt.Fprintf(w, "Aggregated statistics for %d files:\n", len(args))
+	}
+	fmt.Fprintln(w)
+
+	if err := OutputDatasetStats(w, collector.Result, quiet, verbose); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(w)
+
+	if quiet || collector.timing == nil {
+		return nil // Skip timing output in quiet mode or if no timing data
+	}
+
+	table := FormatTimingStats(collector.timing, collector.recordCount)
+	if err := printTable(w, table); err != nil {
+		return fmt.Errorf("failed to print timing statistics: %w", err)
+	}
+	return nil
 }
 
 // OutputTimingStats formats and prints timing statistics based on flags
-func OutputTimingStats(timing *TimingStats, quiet bool) error {
+func OutputTimingStats(w io.Writer, timing *TimingStats, quiet bool) error {
 	if quiet || timing == nil {
 		return nil // Skip output in quiet mode or if no timing data
 	}
 
-	table := FormatTimingStats(timing)
-	if err := printTable(os.Stdout, table); err != nil {
+	table := FormatTimingStats(timing, 0)
+	if err := printTable(w, table); err != nil {
 		return fmt.Errorf("failed to print timing statistics: %w", err)
 	}
 	return nil

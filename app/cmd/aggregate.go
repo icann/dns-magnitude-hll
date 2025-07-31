@@ -90,7 +90,7 @@ var aggregateCmd = &cobra.Command{
 		}
 
 		// Format and print the aggregated domain statistics
-		if err := internal.OutputDomainStats(aggregated, quiet, verbose); err != nil {
+		if err := internal.OutputDatasetStats(os.Stdout, aggregated, quiet, verbose); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}
@@ -101,7 +101,7 @@ var aggregateCmd = &cobra.Command{
 
 		// Finish timing and print timing statistics
 		timing.Finish()
-		if err := internal.OutputTimingStats(timing, quiet); err != nil {
+		if err := internal.OutputTimingStats(os.Stdout, timing, quiet); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to format timing statistics: %v\n", err)
 		}
 	},
