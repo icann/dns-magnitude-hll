@@ -12,7 +12,7 @@ import (
 	"github.com/segmentio/go-hll"
 )
 
-// Need to wrap the hll.Hll type to use custom CBOR marshalling/unmarshalling
+// Need to wrap the hll.Hll type to use custom CBOR marshalling/un-marshalling
 type HLLWrapper struct {
 	*hll.Hll
 }
@@ -105,7 +105,19 @@ func (dataset *MagnitudeDataset) SortedByMagnitude() []DomainMagnitude {
 	}
 
 	slices.SortFunc(sorted, func(a, b DomainMagnitude) int {
-		return int(a.Magnitude*1000) - int(b.Magnitude*1000)
+		// First sort by magnitude
+		magnitudeDiff := int(a.Magnitude*1000) - int(b.Magnitude*1000)
+		if magnitudeDiff != 0 {
+			return magnitudeDiff
+		}
+		// If magnitudes are equal, sort by domain name
+		if a.Domain < b.Domain {
+			return -1
+		} else if a.Domain > b.Domain {
+			return 1
+		}
+		// not reached as long as dataset.Domains is a map
+		panic("Encountered two domains with the same name. Impossible.")
 	})
 
 	return sorted
