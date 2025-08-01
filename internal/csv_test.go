@@ -36,6 +36,8 @@ func TestLoadCSVFromReader(t *testing.T) {
 	}
 
 	collector.finalise()
+	timing.Finish() // for coverage
+
 	dataset := collector.Result
 
 	if dataset.Date.Time != testDate {
