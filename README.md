@@ -13,7 +13,7 @@
 The _collector_ is used to create a CBOR-encoded dataset based on input data in any of the following formats:
 
 - [PCAP](https://en.wikipedia.org/wiki/Pcap) and GZIPed PCAP
-- [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) text files (client IP address, domain)
+- [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) text files (client IP address, domain and optional query counter)
 
 Input data is read from files specified on the command line.
 
