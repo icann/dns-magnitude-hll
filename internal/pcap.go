@@ -50,14 +50,14 @@ func processPackets(reader *pcapgo.Reader, collector *Collector) error {
 
 			src, err := extractSrcIP(packet)
 			if err != nil {
-				// Skip packets without valid source IP
+				collector.invalidRecordCount++
 				continue
 			}
 
 			for _, this := range dns.Questions {
 				name, err := getDomainName(string(this.Name), DefaultDNSDomainNameLabels)
 				if err != nil {
-					// TODO: Log/analyse skipped domain names?
+					collector.invalidDomainCount++
 					continue
 				}
 

@@ -64,11 +64,12 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector) error {
 			break
 		}
 		if err != nil {
-			// TODO: Log or otherwise handle errors?
+			collector.invalidRecordCount++
 			continue
 		}
 
 		if err := processCSVRecord(collector, record); err != nil {
+			collector.invalidRecordCount++
 			line, _ := csvReader.FieldPos(0)
 			return fmt.Errorf("failed to process CSV record at line %d: %w", line, err)
 		}
@@ -106,7 +107,7 @@ func processCSVRecord(collector *Collector, record []string) error {
 
 	domainName, err := getDomainName(domainStr, DefaultDNSDomainNameLabels)
 	if err != nil {
-		// TODO: Log or otherwise handle errors?
+		collector.invalidDomainCount++
 		return nil
 	}
 

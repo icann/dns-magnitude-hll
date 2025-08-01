@@ -77,6 +77,8 @@ func WriteDNSMagFile(stats MagnitudeDataset, filename string) (string, error) {
 func LoadDNSMagFile(filename string) (MagnitudeDataset, error) {
 	var stats MagnitudeDataset
 
+	stats.extraSourceFilename = filename
+
 	file, err := os.Open(filename)
 	if err != nil {
 		return stats, err

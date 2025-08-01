@@ -90,10 +90,12 @@ Save them to a DNSMAG file (CBOR format).`,
 
 		timing.Finish()
 
-		// Print statistics and timing
-		if err := internal.OutputCollectorStats(os.Stdout, collector, quiet, verbose, args); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
+		if !quiet {
+			// Print statistics and timing
+			if err := internal.OutputCollectorStats(os.Stdout, collector, verbose); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				os.Exit(1)
+			}
 		}
 	},
 }

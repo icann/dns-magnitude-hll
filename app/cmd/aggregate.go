@@ -89,20 +89,21 @@ var aggregateCmd = &cobra.Command{
 			fmt.Println()
 		}
 
-		// Format and print the aggregated domain statistics
-		if err := internal.OutputDatasetStats(os.Stdout, aggregated, quiet, verbose); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
+		// Finish timing and print statistics
+		timing.Finish()
 
 		if !quiet {
-			fmt.Println()
-		}
+			// Format and print the aggregated domain statistics
+			if err := internal.OutputDatasetStats(os.Stdout, aggregated, verbose); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				os.Exit(1)
+			}
 
-		// Finish timing and print timing statistics
-		timing.Finish()
-		if err := internal.OutputTimingStats(os.Stdout, timing, quiet); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to format timing statistics: %v\n", err)
+			fmt.Println()
+
+			if err := internal.OutputTimingStats(os.Stdout, timing); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to format timing statistics: %v\n", err)
+			}
 		}
 	},
 }

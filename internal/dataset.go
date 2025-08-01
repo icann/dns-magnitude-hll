@@ -24,15 +24,16 @@ type TimeWrapper struct {
 
 // Main data structure for storing domain statistics. This matches the structure of the CBOR files.
 type MagnitudeDataset struct {
-	Version         uint16                   `cbor:"version"`
-	Date            *TimeWrapper             `cbor:"date"`              // UTC date of collection
-	AllClientsHll   *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
-	AllClientsCount uint64                   `cbor:"all_clients_count"` // Cardinality of GlobalHll
-	AllQueriesCount uint64                   `cbor:"all_queries_count"`
-	Domains         map[DomainName]domainHll `cbor:"domains"`
-	extraAllClients map[netip.Addr]struct{}  // All clients, only used when printing stats in collect command
-	extraV6Clients  map[netip.Addr]struct{}  // IPv6 clients, only used when printing stats in collect command
-	extraAllDomains map[DomainName]struct{}  // All domains before any truncation
+	Version             uint16                   `cbor:"version"`
+	Date                *TimeWrapper             `cbor:"date"`              // UTC date of collection
+	AllClientsHll       *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
+	AllClientsCount     uint64                   `cbor:"all_clients_count"` // Cardinality of GlobalHll
+	AllQueriesCount     uint64                   `cbor:"all_queries_count"`
+	Domains             map[DomainName]domainHll `cbor:"domains"`
+	extraAllClients     map[netip.Addr]struct{}  // All clients, only used when printing stats in collect command
+	extraV6Clients      map[netip.Addr]struct{}  // IPv6 clients, only used when printing stats in collect command
+	extraAllDomains     map[DomainName]struct{}  // All domains before any truncation
+	extraSourceFilename string                   // Source filename when loaded from file
 }
 
 // Per-domain data
@@ -67,15 +68,16 @@ func newDataset() MagnitudeDataset {
 	dateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
 	return MagnitudeDataset{
-		Version:         1,
-		Date:            &TimeWrapper{Time: dateOnly},
-		AllClientsHll:   &HLLWrapper{Hll: &hll.Hll{}},
-		Domains:         make(map[DomainName]domainHll),
-		AllClientsCount: 0,
-		AllQueriesCount: 0,
-		extraAllClients: make(map[netip.Addr]struct{}),
-		extraV6Clients:  make(map[netip.Addr]struct{}),
-		extraAllDomains: make(map[DomainName]struct{}),
+		Version:             1,
+		Date:                &TimeWrapper{Time: dateOnly},
+		AllClientsHll:       &HLLWrapper{Hll: &hll.Hll{}},
+		Domains:             make(map[DomainName]domainHll),
+		AllClientsCount:     0,
+		AllQueriesCount:     0,
+		extraAllClients:     make(map[netip.Addr]struct{}),
+		extraV6Clients:      make(map[netip.Addr]struct{}),
+		extraAllDomains:     make(map[DomainName]struct{}),
+		extraSourceFilename: "",
 	}
 }
 
@@ -130,11 +132,11 @@ func (dataset *MagnitudeDataset) Truncate(maxDomains int) {
 
 // count a query for a domain and source IP address.
 func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress, queryCount uint64, verbose bool) {
-	if domain == "" || queryCount == 0 {
+	if queryCount == 0 {
 		return
 	}
 
-	// Ensure domainHll exists for this domain
+	// Fetch (or initialise) domainHll for this domain
 	dh, found := dataset.Domains[domain]
 	if !found {
 		dh = newDomain(domain)
@@ -187,13 +189,13 @@ func AggregateDatasets(datasets []MagnitudeDataset) (MagnitudeDataset, error) {
 	}
 
 	// Verify all input datasets have the same version and date
-	for i, dataset := range datasets {
+	for _, dataset := range datasets {
 		if dataset.Version != datasets[0].Version {
-			e := fmt.Errorf("version mismatch: dataset %d has version %d, expected %d", i, dataset.Version, datasets[0].Version)
+			e := fmt.Errorf("version mismatch: dataset %s has version %d, expected %d", dataset.extraSourceFilename, dataset.Version, datasets[0].Version)
 			return MagnitudeDataset{}, e
 		}
 		if dataset.DateString() != datasets[0].DateString() {
-			e := fmt.Errorf("date mismatch: dataset %d has date %s, expected %s", i, dataset.DateString(), datasets[0].DateString())
+			e := fmt.Errorf("date mismatch: dataset %s has date %s, expected %s", dataset.extraSourceFilename, dataset.DateString(), datasets[0].DateString())
 			return MagnitudeDataset{}, e
 		}
 	}
