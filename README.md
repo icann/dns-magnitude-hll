@@ -1,5 +1,7 @@
 # DNS Magnitude HLL Toolkit
 
+This software may be used by root server operators that voluntary want to share data with ICANN related to name collision observations.
+
 
 ## Terminology
 
