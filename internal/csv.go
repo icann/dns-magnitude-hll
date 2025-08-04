@@ -105,14 +105,8 @@ func processCSVRecord(collector *Collector, record []string) error {
 
 	clientIP := newIPAddressFromString(clientStr)
 
-	domainName, err := getDomainName(domainStr, DefaultDNSDomainNameLabels)
-	if err != nil {
-		collector.invalidDomainCount++
-		return nil
-	}
-
 	// Update statistics with the specified query count
-	collector.ProcessRecord(domainName, clientIP, queryCount)
+	collector.ProcessRecord(domainStr, clientIP, queryCount)
 
 	return nil
 }

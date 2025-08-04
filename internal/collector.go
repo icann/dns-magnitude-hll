@@ -45,8 +45,15 @@ func NewCollector(topCount, chunkSize int, verbose bool, date *time.Time, timing
 	return c
 }
 
-func (c *Collector) ProcessRecord(domain DomainName, src IPAddress, queryCount uint64) {
+func (c *Collector) ProcessRecord(domainStr string, src IPAddress, queryCount uint64) {
+	domain, err := getDomainName(domainStr, DefaultDNSDomainNameLabels)
+	if err != nil {
+		c.invalidDomainCount++
+		return
+	}
+
 	c.current.updateStats(domain, src, queryCount, c.verbose)
+
 	c.recordCount++
 	if c.chunkSize != 0 && c.recordCount%c.chunkSize == 0 {
 		c.migrateCurrent()

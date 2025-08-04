@@ -55,11 +55,7 @@ func processPackets(reader *pcapgo.Reader, collector *Collector) error {
 			}
 
 			for _, this := range dns.Questions {
-				name, err := getDomainName(string(this.Name), DefaultDNSDomainNameLabels)
-				if err != nil {
-					collector.invalidDomainCount++
-					continue
-				}
+				name := string(this.Name)
 
 				collector.ProcessRecord(name, src, 1)
 			}
