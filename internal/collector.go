@@ -4,7 +4,6 @@ package internal
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"time"
 )
@@ -45,32 +44,34 @@ func NewCollector(topCount, chunkSize int, verbose bool, date *time.Time, timing
 	return c
 }
 
-func (c *Collector) ProcessRecord(domainStr string, src IPAddress, queryCount uint64) {
+func (c *Collector) ProcessRecord(domainStr string, src IPAddress, queryCount uint64) error {
 	domain, err := getDomainName(domainStr, DefaultDNSDomainNameLabels)
 	if err != nil {
 		c.invalidDomainCount++
-		return
+		return nil // Invalid domain is not a fatal error
 	}
 
 	c.current.updateStats(domain, src, queryCount, c.verbose)
 
 	c.recordCount++
 	if c.chunkSize != 0 && c.recordCount%c.chunkSize == 0 {
-		c.migrateCurrent()
+		if err := c.migrateCurrent(); err != nil {
+			return fmt.Errorf("failed to migrate current dataset: %w", err)
+		}
 	}
+	return nil
 }
 
-func (c *Collector) migrateCurrent() {
+func (c *Collector) migrateCurrent() error {
 	if c.current.AllQueriesCount == 0 {
-		return
+		return nil
 	}
 	c.Result.Date = c.current.Date
 
 	// Aggregate current dataset into result
 	res, err := AggregateDatasets([]MagnitudeDataset{c.Result, c.current})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to aggregate datasets: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to aggregate datasets: %w", err)
 	}
 	res.Truncate(c.topCount)
 	c.Result = res
@@ -81,6 +82,7 @@ func (c *Collector) migrateCurrent() {
 
 	// Run garbage collection to free memory
 	runtime.GC()
+	return nil
 }
 
 // Since "current" is not public, we need a public method to set the date
@@ -97,12 +99,15 @@ func (c *Collector) SetDate(date *time.Time) {
 	}
 }
 
-func (c *Collector) finalise() {
-	c.migrateCurrent()
+func (c *Collector) finalise() error {
+	if err := c.migrateCurrent(); err != nil {
+		return fmt.Errorf("failed to migrate current dataset: %w", err)
+	}
 
 	// Truncate the aggregated stats to the top N domains
 	c.Result.Truncate(c.topCount)
 	c.Result.finaliseStats()
+	return nil
 }
 
 // ProcessFiles processes multiple input files into collector.Result
@@ -129,7 +134,9 @@ func (c *Collector) ProcessFiles(files []string, filetype string) error {
 
 	c.timing.StopParsing()
 
-	c.finalise()
+	if err := c.finalise(); err != nil {
+		return fmt.Errorf("failed to finalise collection: %w", err)
+	}
 
 	c.filesLoaded = files
 

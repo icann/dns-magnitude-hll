@@ -57,7 +57,9 @@ func processPackets(reader *pcapgo.Reader, collector *Collector) error {
 			for _, this := range dns.Questions {
 				name := string(this.Name)
 
-				collector.ProcessRecord(name, src, 1)
+				if err := collector.ProcessRecord(name, src, 1); err != nil {
+					return fmt.Errorf("failed to process record: %w", err)
+				}
 			}
 		}
 	}
