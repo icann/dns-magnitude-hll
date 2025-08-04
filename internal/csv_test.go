@@ -338,7 +338,7 @@ func TestCollectorChunking(t *testing.T) {
 		{
 			name:           "99 IPs chunked",
 			numIPs:         99,
-			expectedChunks: 10, // 99 IPs with chunk size 10 results in 10 chunks
+			expectedChunks: 10, // 99 IPs with chunk size 10 results in 10 chunks (9 full + 1 partial)
 		},
 		{
 			name:           "100 IPs chunked",
@@ -348,7 +348,7 @@ func TestCollectorChunking(t *testing.T) {
 		{
 			name:           "101 IPs chunked",
 			numIPs:         101,
-			expectedChunks: 11, // 101 IPs with chunk size 10 results in 11 chunks
+			expectedChunks: 11, // 101 IPs with chunk size 10 results in 11 chunks (10 full + 1 partial)
 		},
 	}
 
@@ -399,6 +399,11 @@ func TestCollectorChunking(t *testing.T) {
 			numDomains := len(dataset.extraAllDomains)
 			if numDomains != 1 {
 				t.Errorf("Expected %d unique domains, got %d", 1, numDomains)
+			}
+
+			// validate expected number of chunks processed
+			if collector.chunkCount != tt.expectedChunks {
+				t.Errorf("Expected %d chunks processed, got %d", tt.expectedChunks, collector.chunkCount)
 			}
 
 			// Check that "net" domain exists

@@ -57,11 +57,13 @@ func (c *Collector) ProcessRecord(domainStr string, src IPAddress, queryCount ui
 	c.recordCount++
 	if c.chunkSize != 0 && c.recordCount%c.chunkSize == 0 {
 		c.migrateCurrent()
-		c.chunkCount++
 	}
 }
 
 func (c *Collector) migrateCurrent() {
+	if c.current.AllQueriesCount == 0 {
+		return
+	}
 	c.Result.Date = c.current.Date
 
 	// Aggregate current dataset into result
@@ -74,6 +76,8 @@ func (c *Collector) migrateCurrent() {
 	c.Result = res
 	c.current = newDataset()
 	c.current.Date = c.Result.Date // Keep the date from the result dataset
+
+	c.chunkCount++
 
 	// Run garbage collection to free memory
 	runtime.GC()
