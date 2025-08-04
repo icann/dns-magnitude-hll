@@ -3,8 +3,11 @@ package internal
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/segmentio/go-hll"
 )
 
 func init() {
@@ -499,5 +502,68 @@ func TestAggregateDatasets_Success(t *testing.T) {
 
 	if result.Version != 1 {
 		t.Errorf("Expected version 1, got %d", result.Version)
+	}
+}
+
+func TestAggregateDatasets_HLLUnionErrors(t *testing.T) {
+	// Initialize HLL with default settings
+	err := InitStats()
+	if err != nil {
+		t.Fatalf("Failed to initialize stats: %v", err)
+	}
+
+	tests := []struct {
+		name             string
+		allClientsHll    bool
+		expectedErrorMsg string
+	}{
+		{
+			name:             "all clients HLL union error",
+			allClientsHll:    true,
+			expectedErrorMsg: "failed to union all clients HLL",
+		},
+		{
+			name:             "domain HLL union error",
+			allClientsHll:    false,
+			expectedErrorMsg: "failed to union HLL for domain",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dataset1 := newDataset()
+			domain := DomainName("example.com")
+			dataset1.Domains[domain] = newDomain(domain)
+
+			dataset2 := newDataset()
+			domainData := newDomain(domain)
+			dataset2.Domains[domain] = domainData
+
+			settings := dataset1.AllClientsHll.Settings()
+			settings.Regwidth = settings.Regwidth + 1
+
+			incompatibleHLL, err := hll.NewHll(settings)
+			if err != nil {
+				t.Fatalf("Failed to create incompatible HLL: %v", err)
+			}
+
+			if tt.allClientsHll {
+				dataset2.AllClientsHll = &HLLWrapper{Hll: &incompatibleHLL}
+			} else {
+				domainData.Hll = &HLLWrapper{Hll: &incompatibleHLL}
+				dataset2.Domains[domain] = domainData
+			}
+
+			datasets := []MagnitudeDataset{dataset1, dataset2}
+
+			// Attempt to aggregate - should fail due to incompatible HLL settings
+			_, err = AggregateDatasets(datasets)
+			if err == nil {
+				t.Error("Expected error when aggregating datasets with incompatible HLLs, but got nil")
+			}
+			if err != nil && !strings.Contains(err.Error(), tt.expectedErrorMsg) {
+				t.Errorf("Expected error message to contain '%s', got: %v", tt.expectedErrorMsg, err)
+			}
+		})
 	}
 }
