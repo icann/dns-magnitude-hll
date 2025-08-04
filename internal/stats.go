@@ -36,10 +36,6 @@ type TableRow struct {
 
 // printTable prints a table with dynamic column widths
 func printTable(w io.Writer, rows []TableRow) error {
-	if len(rows) == 0 {
-		return nil
-	}
-
 	maxLHSWidth := 0
 	for _, row := range rows {
 		if len(row.lhs) > maxLHSWidth {
@@ -50,7 +46,9 @@ func printTable(w io.Writer, rows []TableRow) error {
 	for _, row := range rows {
 		if row.lhs == "" {
 			// separator
-			fmt.Fprintln(w)
+			if _, err := fmt.Fprintln(w); err != nil {
+				return err
+			}
 			continue
 		}
 		if _, err := fmt.Fprintf(w, "%-*s : %s\n", maxLHSWidth, row.lhs, row.rhs); err != nil {
@@ -113,7 +111,7 @@ func formatGeneralStats(dataset MagnitudeDataset) []TableRow {
 }
 
 // formatDatasetStats prepares domain statistics for printing.
-func formatDatasetStats(dataset MagnitudeDataset) ([]TableRow, []string, error) {
+func formatDatasetStats(dataset MagnitudeDataset) ([]TableRow, []string) {
 	domainTable, domains := formatDomainRecords(dataset)
 	generalTable := formatGeneralStats(dataset)
 
@@ -123,7 +121,7 @@ func formatDatasetStats(dataset MagnitudeDataset) ([]TableRow, []string, error) 
 	table = append(table, generalTable...)
 	table = append(table, domainTable...)
 
-	return table, domains, nil
+	return table, domains
 }
 
 // formatTimingStats formats timing statistics as table rows
@@ -174,10 +172,7 @@ func formatCollectorStats(collector *Collector) []TableRow {
 
 // OutputDatasetStats formats and prints statistics from a MagnitudeDataset
 func OutputDatasetStats(w io.Writer, dataset MagnitudeDataset, verbose bool) error {
-	table, domains, err := formatDatasetStats(dataset)
-	if err != nil {
-		return fmt.Errorf("failed to format dataset statistics: %w", err)
-	}
+	table, domains := formatDatasetStats(dataset)
 
 	if verbose && len(domains) > 0 {
 		fmt.Fprintln(w)
