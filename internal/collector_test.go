@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"compress/gzip"
 	"fmt"
 	"math"
 	"os"
@@ -76,34 +77,29 @@ func TestCollectorChunking(t *testing.T) {
 
 			dataset := collector.Result
 
-			// Verify basic properties
-			if dataset.AllQueriesCount != tt.numIPs {
-				t.Errorf("Expected %d queries, got %d", tt.numIPs, dataset.AllQueriesCount)
-			}
+			validateDataset(t, dataset, DatasetExpected{
+				queriesCount:    tt.numIPs,
+				domainCount:     1,
+				expectedDomains: []string{"net"},
+				invalidDomains:  0,
+				invalidRecords:  0,
+			}, collector)
 
-			numClients := uint64(len(dataset.extraAllClients))
-			if numClients != tt.numIPs {
-				t.Errorf("Expected %d unique IPs, got %d", tt.numIPs, numClients)
-			}
-
-			numDomains := len(dataset.extraAllDomains)
-			if numDomains != 1 {
-				t.Errorf("Expected %d unique domains, got %d", 1, numDomains)
-			}
+			validateDatasetDomains(t, dataset, DatasetDomainsExpected{
+				expectedDomains: map[DomainName]uint64{
+					"net": tt.numIPs,
+				},
+			})
 
 			// validate expected number of chunks processed
 			if collector.chunkCount != tt.expectedChunks {
 				t.Errorf("Expected %d chunks processed, got %d", tt.expectedChunks, collector.chunkCount)
 			}
 
-			// Check that "net" domain exists
-			netDomain, exists := dataset.Domains[DomainName("net")]
-			if !exists {
-				t.Fatal("Expected domain not found")
-			}
-
-			if netDomain.QueriesCount != tt.numIPs {
-				t.Errorf("Expected %d queries for .net domain, got %d", tt.numIPs, netDomain.QueriesCount)
+			// Check client counts in verbose mode
+			numClients := uint64(len(dataset.extraAllClients))
+			if numClients != tt.numIPs {
+				t.Errorf("Expected %d unique IPs, got %d", tt.numIPs, numClients)
 			}
 
 			// Verify HLL estimate is reasonable (within expected error range)
@@ -115,6 +111,210 @@ func TestCollectorChunking(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCollectorPcapLoading(t *testing.T) {
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, true, nil, timing)
+
+	err := collector.ProcessFiles([]string{"../testdata/test1.pcap.gz"}, "pcap")
+	if err != nil {
+		t.Fatalf("ProcessFiles failed for PCAP: %v", err)
+	}
+
+	dataset := collector.Result
+
+	validateDataset(t, dataset, DatasetExpected{
+		queriesCount:    100,
+		domainCount:     4,
+		expectedDomains: []string{"com", "net", "org", "arpa"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
+
+	if dataset.AllClientsCount != 58 {
+		t.Errorf("Expected some clients from PCAP file, got %d", dataset.AllClientsCount)
+	}
+
+	// Verify date was set from PCAP packet timestamps
+	expectedDate := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	if dataset.Date.Time != expectedDate {
+		t.Errorf("Expected date %v, got %v", expectedDate, dataset.Date.Time)
+	}
+}
+
+func TestCollectorNonExistentFiles(t *testing.T) {
+	tests := []struct {
+		name     string
+		files    []string
+		filetype string
+		errMsg   string
+	}{
+		{
+			name:     "non-existent CSV file",
+			files:    []string{"non-existent.csv"},
+			filetype: "csv",
+			errMsg:   "failed to load csv file non-existent.csv",
+		},
+		{
+			name:     "non-existent PCAP file",
+			files:    []string{"non-existent.pcap"},
+			filetype: "pcap",
+			errMsg:   "failed to load pcap file non-existent.pcap",
+		},
+		{
+			name:     "multiple non-existent CSV files",
+			files:    []string{"missing1.csv", "missing2.csv"},
+			filetype: "csv",
+			errMsg:   "failed to load csv file missing1.csv",
+		},
+		{
+			name:     "mixed existing and non-existent files",
+			files:    []string{"../testdata/test1.pcap.gz", "missing.pcap"},
+			filetype: "pcap",
+			errMsg:   "failed to load pcap file missing.pcap",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			timing := NewTimingStats()
+			collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
+
+			err := collector.ProcessFiles(tt.files, tt.filetype)
+
+			if err == nil {
+				t.Error("Expected error for non-existent file, got nil")
+				return
+			}
+
+			if !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error message to contain '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestCollectorFileLoadingError(t *testing.T) {
+	tests := []struct {
+		name      string
+		filetype  string
+		chunkSize uint
+		setup     func() (string, func())
+		errMsg    string
+	}{
+		{
+			name:      "CSV aggregation error",
+			filetype:  "csv",
+			chunkSize: 10,
+			setup: func() (string, func()) {
+				tmpFile, err := os.CreateTemp("", "test_*.csv")
+				if err != nil {
+					t.Fatalf("Failed to create temp file: %v", err)
+				}
+				tmpFile.WriteString("192.168.1.1,example.com,1\n")
+				tmpFile.Close()
+				return tmpFile.Name(), func() { os.Remove(tmpFile.Name()) }
+			},
+			errMsg: "failed to finalise collection: failed to migrate current dataset: failed to aggregate datasets: version mismatch:",
+		},
+		{
+			name:      "CSV aggregation error with chunking",
+			filetype:  "csv",
+			chunkSize: 2,
+			setup: func() (string, func()) {
+				tmpFile, err := os.CreateTemp("", "test_*.csv")
+				if err != nil {
+					t.Fatalf("Failed to create temp file: %v", err)
+				}
+				csvData := `192.168.1.1,example.com,1
+192.168.1.2,example.org,1
+192.168.1.3,example.net,1
+`
+
+				tmpFile.WriteString(csvData)
+				tmpFile.Close()
+				return tmpFile.Name(), func() { os.Remove(tmpFile.Name()) }
+			},
+			errMsg: "failed to parse CSV: failed to process CSV record at line 2: failed to process record: failed to migrate current dataset: failed to aggregate datasets: version mismatch: dataset",
+		},
+		{
+			name:      "PCAP aggregation error",
+			filetype:  "pcap",
+			chunkSize: 10,
+			setup: func() (string, func()) {
+				return "../testdata/test1.pcap.gz", func() {}
+			},
+			errMsg: "version mismatch",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filename, cleanup := tt.setup()
+			defer cleanup()
+
+			timing := NewTimingStats()
+			collector := NewCollector(DefaultDomainCount, tt.chunkSize, false, nil, timing)
+
+			// Modify the Result dataset version to make file loading fail
+			collector.Result.Version++
+
+			err := collector.ProcessFiles([]string{filename}, tt.filetype)
+
+			if err == nil {
+				t.Error("Expected version mismatch error, got nil")
+				return
+			}
+
+			if !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error message to contain '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestCollectorGzippedCSV(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test_*.csv.gz")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	gzipWriter := gzip.NewWriter(tmpFile)
+	defer gzipWriter.Close()
+
+	csvData := `# Test gzipped CSV data
+192.168.1.1,example.com,5
+192.168.1.2,example.org,3
+10.0.0.1,example.net,2
+192.168.1.3,invalid-domain.example.123,1`
+
+	if _, err := gzipWriter.Write([]byte(csvData)); err != nil {
+		t.Fatalf("Failed to write to gzip writer: %v", err)
+	}
+	gzipWriter.Close()
+	tmpFile.Close()
+
+	testDate := time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
+
+	err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv")
+	if err != nil {
+		t.Fatalf("ProcessFiles failed for gzipped CSV: %v", err)
+	}
+
+	dataset := collector.Result
+
+	validateDataset(t, dataset, DatasetExpected{
+		queriesCount:    10,
+		domainCount:     3,
+		expectedDomains: []string{"com", "org", "net"},
+		invalidDomains:  1,
+		invalidRecords:  0,
+	}, collector)
 }
 
 // Helper function to safely convert uint64 to int without overflow

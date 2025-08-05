@@ -59,41 +59,22 @@ func TestLoadPcap_TestData(t *testing.T) {
 			collector.finalise()
 			dataset := collector.Result
 
-			// Validate total query count
-			if dataset.AllQueriesCount != tt.expectedQueryCount {
-				t.Errorf("Expected total queries %d, got %d", tt.expectedQueryCount, dataset.AllQueriesCount)
-			}
+			validateDataset(t, dataset, DatasetExpected{
+				queriesCount:    tt.expectedQueryCount,
+				domainCount:     len(tt.expectedDomains),
+				expectedDomains: []string{"com", "net", "org", "arpa"},
+				invalidDomains:  0,
+				invalidRecords:  0,
+			}, collector)
 
 			// Validate client count (require exact match for test data)
 			if dataset.AllClientsCount != tt.expectedClientCount {
 				t.Errorf("Expected client count %d, got %d", tt.expectedClientCount, dataset.AllClientsCount)
 			}
 
-			// Validate domain counts
-			if len(dataset.Domains) != len(tt.expectedDomains) {
-				t.Errorf("Expected %d domains, got %d", len(tt.expectedDomains), len(dataset.Domains))
-			}
-
-			for expectedDomain, expectedQueries := range tt.expectedDomains {
-				domain, exists := dataset.Domains[expectedDomain]
-				if !exists {
-					t.Errorf("Expected domain %s not found in results", expectedDomain)
-					continue
-				}
-
-				if domain.QueriesCount != expectedQueries {
-					t.Errorf("Domain %s: expected %d queries, got %d",
-						expectedDomain, expectedQueries, domain.QueriesCount)
-				}
-			}
-
-			// Verify no unexpected domains
-			for actualDomain := range dataset.Domains {
-				if _, expected := tt.expectedDomains[actualDomain]; !expected {
-					t.Errorf("Unexpected domain found: %s with %d queries",
-						actualDomain, dataset.Domains[actualDomain].QueriesCount)
-				}
-			}
+			validateDatasetDomains(t, dataset, DatasetDomainsExpected{
+				expectedDomains: tt.expectedDomains,
+			})
 		})
 	}
 }

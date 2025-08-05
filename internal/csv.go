@@ -22,7 +22,7 @@ func LoadCSVFile(filename string, collector *Collector) error {
 
 	reader, err := getReaderFromFile(file)
 	if err != nil {
-		return fmt.Errorf("failed to parse CSV: %w", err)
+		return fmt.Errorf("failed to read CSV: %w", err)
 	}
 
 	err = LoadCSVFromReader(reader, collector)
