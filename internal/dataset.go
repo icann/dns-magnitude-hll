@@ -62,14 +62,9 @@ func InitStats() error {
 	})
 }
 
-func newDataset() MagnitudeDataset {
-	// Get current date without time (start of day in UTC)
-	now := time.Now().UTC()
-	dateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-
-	return MagnitudeDataset{
+func newDataset(date *time.Time) MagnitudeDataset {
+	dataset := MagnitudeDataset{
 		Version:             1,
-		Date:                &TimeWrapper{Time: dateOnly},
 		AllClientsHll:       &HLLWrapper{Hll: &hll.Hll{}},
 		Domains:             make(map[DomainName]domainHll),
 		AllClientsCount:     0,
@@ -79,6 +74,9 @@ func newDataset() MagnitudeDataset {
 		extraAllDomains:     make(map[DomainName]struct{}),
 		extraSourceFilename: "",
 	}
+
+	dataset.SetDate(date)
+	return dataset
 }
 
 func newDomain(domain DomainName) domainHll {
@@ -91,6 +89,17 @@ func newDomain(domain DomainName) domainHll {
 	}
 
 	return result
+}
+
+func (dataset *MagnitudeDataset) SetDate(date *time.Time) {
+	var dateOnly time.Time
+	if date != nil {
+		dateOnly = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	} else {
+		now := time.Now().UTC()
+		dateOnly = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	}
+	dataset.Date = &TimeWrapper{Time: dateOnly}
 }
 
 func (dataset *MagnitudeDataset) SortedByMagnitude() []DomainMagnitude {
@@ -218,8 +227,7 @@ func AggregateDatasets(datasets []MagnitudeDataset) (MagnitudeDataset, error) {
 		}
 	}
 
-	res := newDataset()
-	res.Date = datasets[0].Date
+	res := newDataset(&datasets[0].Date.Time)
 
 	// Aggregate global HLL
 	for _, dataset := range datasets {

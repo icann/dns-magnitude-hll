@@ -106,7 +106,7 @@ func TestMagnitudeDataset_SortedByMagnitude(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock dataset
-			dataset := newDataset()
+			dataset := newDataset(nil)
 			dataset.AllClientsCount = tt.allClientsCount
 
 			// Create mock domains with specified client counts
@@ -144,7 +144,7 @@ func TestMagnitudeDataset_SortedByMagnitude(t *testing.T) {
 }
 
 func TestMagnitudeDataset_SortedByMagnitude_EmptyDataset(t *testing.T) {
-	dataset := newDataset()
+	dataset := newDataset(nil)
 	dataset.AllClientsCount = 100
 
 	sorted := dataset.SortedByMagnitude()
@@ -202,7 +202,7 @@ func TestMagnitudeDataset_Truncate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create dataset with specified number of domains
-			dataset := newDataset()
+			dataset := newDataset(nil)
 			dataset.AllClientsCount = 1000
 
 			var expectedRemaining []DomainName
@@ -244,7 +244,7 @@ func TestMagnitudeDataset_Truncate(t *testing.T) {
 }
 
 func TestMagnitudeDataset_UpdateStats_ZeroQueryCount(t *testing.T) {
-	dataset := newDataset()
+	dataset := newDataset(nil)
 	testIP := newIPAddressFromString("192.168.1.1")
 	testDomain := DomainName("org")
 
@@ -278,9 +278,8 @@ func TestAggregateDatasets_ValidationErrors(t *testing.T) {
 	date2 := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
 
 	createDataset := func(version uint16, date time.Time, filename string) MagnitudeDataset {
-		dataset := newDataset()
+		dataset := newDataset(&date)
 		dataset.Version = version
-		dataset.Date = &TimeWrapper{Time: date}
 		dataset.extraSourceFilename = filename
 
 		// Add a simple domain for testing
@@ -398,9 +397,8 @@ func TestAggregateDatasets_Success(t *testing.T) {
 	date := time.Date(1999, 8, 21, 0, 0, 0, 0, time.UTC)
 
 	// Create first dataset with domains A, B, C
-	dataset1 := newDataset()
+	dataset1 := newDataset(&date)
 	dataset1.Version = 1
-	dataset1.Date = &TimeWrapper{Time: date}
 	dataset1.extraSourceFilename = "file1.dnsmag"
 	dataset1.AllQueriesCount = 300
 	dataset1.AllClientsCount = 30
@@ -421,9 +419,8 @@ func TestAggregateDatasets_Success(t *testing.T) {
 	dataset1.Domains["c.example.org"] = domainC
 
 	// Create second dataset with domains B, C, D (overlapping with first)
-	dataset2 := newDataset()
+	dataset2 := newDataset(&date)
 	dataset2.Version = 1
-	dataset2.Date = &TimeWrapper{Time: date}
 	dataset2.extraSourceFilename = "file2.dnsmag"
 	dataset2.AllQueriesCount = 250
 	dataset2.AllClientsCount = 25
@@ -531,11 +528,11 @@ func TestAggregateDatasets_HLLUnionErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dataset1 := newDataset()
+			dataset1 := newDataset(nil)
 			domain := DomainName("example.com")
 			dataset1.Domains[domain] = newDomain(domain)
 
-			dataset2 := newDataset()
+			dataset2 := newDataset(nil)
 			domainData := newDomain(domain)
 			dataset2.Domains[domain] = domainData
 

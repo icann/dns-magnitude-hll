@@ -27,8 +27,8 @@ func NewCollector(topCount int, chunkSize uint, verbose bool, date *time.Time, t
 		topCount:           topCount,
 		chunkSize:          chunkSize,
 		verbose:            verbose,
-		current:            newDataset(),
-		Result:             newDataset(),
+		current:            newDataset(date),
+		Result:             newDataset(date),
 		chunkCount:         0,
 		timing:             timing,
 		invalidDomainCount: 0,
@@ -70,8 +70,7 @@ func (c *Collector) migrateCurrent() error {
 	}
 	res.Truncate(c.topCount)
 	c.Result = res
-	c.current = newDataset()
-	c.current.Date = c.Result.Date // Keep the date from the result dataset
+	c.current = newDataset(&c.Result.Date.Time)
 
 	c.chunkCount++
 
@@ -82,13 +81,8 @@ func (c *Collector) migrateCurrent() error {
 
 // Since "current" is not public, we need a public method to set the date
 func (c *Collector) SetDate(date *time.Time) {
-	if date != nil {
-		c.current.Date = &TimeWrapper{Time: date.UTC()}
-	} else {
-		now := time.Now().UTC()
-		dateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-		c.current.Date = &TimeWrapper{Time: dateOnly}
-	}
+	c.current.SetDate(date)
+
 	if c.Result.Date == nil {
 		c.Result.Date = c.current.Date // Set the date for the result dataset if not already set
 	}
