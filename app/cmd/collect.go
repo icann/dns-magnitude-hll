@@ -64,7 +64,13 @@ Save them to a DNSMAG file (CBOR format).`,
 		}
 
 		// Collect all datasets from input files
-		collector := internal.NewCollector(topCount, chunk*1000*1000, verbose, date, timing)
+		var chunkSize uint
+		if chunk < 0 {
+			chunkSize = 0
+		} else {
+			chunkSize = uint(chunk) * 1000 * 1000
+		}
+		collector := internal.NewCollector(topCount, chunkSize, verbose, date, timing)
 		err := collector.ProcessFiles(args, filetype)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)

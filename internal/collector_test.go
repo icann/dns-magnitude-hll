@@ -42,7 +42,7 @@ func TestCollectorChunking(t *testing.T) {
 		},
 	}
 
-	chunkSize := 10 // Set a default chunk size for all tests
+	chunkSize := uint(10) // Set a default chunk size for all tests
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

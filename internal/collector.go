@@ -22,15 +22,10 @@ type Collector struct {
 	filesLoaded        []string         // List of files that were successfully loaded
 }
 
-func NewCollector(topCount, chunkSize int, verbose bool, date *time.Time, timing *TimingStats) *Collector {
+func NewCollector(topCount int, chunkSize uint, verbose bool, date *time.Time, timing *TimingStats) *Collector {
 	c := &Collector{
-		topCount: topCount,
-		chunkSize: func() uint {
-			if chunkSize < 0 {
-				return 0
-			}
-			return uint(chunkSize)
-		}(),
+		topCount:           topCount,
+		chunkSize:          chunkSize,
 		verbose:            verbose,
 		current:            newDataset(),
 		Result:             newDataset(),
