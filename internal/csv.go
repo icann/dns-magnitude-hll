@@ -105,7 +105,9 @@ func processCSVRecord(collector *Collector, record []string) error {
 	clientIP := newIPAddressFromString(clientStr)
 
 	// Update statistics with the specified query count
-	collector.ProcessRecord(domainStr, clientIP, queryCount)
+	if err := collector.ProcessRecord(domainStr, clientIP, queryCount); err != nil {
+		return fmt.Errorf("failed to process record: %w", err)
+	}
 
 	return nil
 }
