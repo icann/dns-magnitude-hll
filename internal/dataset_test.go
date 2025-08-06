@@ -245,7 +245,10 @@ func TestMagnitudeDataset_Truncate(t *testing.T) {
 
 func TestMagnitudeDataset_UpdateStats_ZeroQueryCount(t *testing.T) {
 	dataset := newDataset(nil)
-	testIP := newIPAddressFromString("192.168.1.1")
+	testIP, err := NewIPAddressFromString("192.168.1.1")
+	if err != nil {
+		t.Fatalf("newIPAddressFromString failed: %v", err)
+	}
 	testDomain := DomainName("org")
 
 	// Call updateStats with zero query count - should result in no change

@@ -3,6 +3,7 @@
 package internal
 
 import (
+	"fmt"
 	"net/netip"
 
 	"github.com/zeebo/xxh3"
@@ -16,23 +17,29 @@ type IPAddress struct {
 	hash        uint64
 }
 
-// newIPAddress creates an IPAddress from a netip.Addr
-func newIPAddress(addr netip.Addr) IPAddress {
+// NewIPAddress creates an IPAddress from a netip.Addr
+func NewIPAddress(addr netip.Addr) (IPAddress, error) {
+	return newIPAddress(addr, DefaultIPv4MaskLength, DefaultIPv6MaskLength)
+}
+
+// Internal function to make incorrect IP address handling testable
+func newIPAddress(addr netip.Addr, v4mask, v6mask int) (IPAddress, error) {
 	var truncated netip.Addr
 	if addr.Is4() {
-		prefix, err := addr.Prefix(24)
+		prefix, err := addr.Prefix(v4mask)
 		if err != nil {
-			panic("invalid IPv4 address")
+			return IPAddress{}, fmt.Errorf("invalid IPv4 address: %w", err)
 		}
 		truncated = prefix.Addr()
 	} else if addr.Is6() {
-		prefix, err := addr.Prefix(48)
+		prefix, err := addr.Prefix(v6mask)
 		if err != nil {
-			panic("invalid IPv6 address")
+			return IPAddress{}, fmt.Errorf("invalid IPv6 address: %w", err)
 		}
 		truncated = prefix.Addr()
 	} else {
-		panic("invalid IP address")
+		// Don't think we can actually get here. Maybe from a malformed PCAP?
+		return IPAddress{}, fmt.Errorf("invalid IP address: not IPv4 or IPv6")
 	}
 	hashInput := truncated.As16()
 	hash := xxh3.Hash(hashInput[:])
@@ -41,14 +48,14 @@ func newIPAddress(addr netip.Addr) IPAddress {
 		truncatedIP: truncated,
 		hashInput:   hashInput,
 		hash:        hash,
-	}
+	}, nil
 }
 
-// newIPAddress creates an IPAddress from a string
-func newIPAddressFromString(s string) IPAddress {
+// NewIPAddressFromString creates an IPAddress from a string
+func NewIPAddressFromString(s string) (IPAddress, error) {
 	addr, err := netip.ParseAddr(s)
 	if err != nil {
-		panic("invalid IP address")
+		return IPAddress{}, fmt.Errorf("invalid IP address string '%s': %w", s, err)
 	}
-	return newIPAddress(addr)
+	return NewIPAddress(addr)
 }

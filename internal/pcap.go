@@ -73,13 +73,13 @@ func extractSrcIP(packet gopacket.Packet) (IPAddress, error) {
 		ip := ip4.(*layers.IPv4).SrcIP
 		if ip4 := ip.To4(); ip4 != nil {
 			addr, _ := netip.AddrFromSlice(ip4)
-			return newIPAddress(addr), nil
+			return NewIPAddress(addr)
 		}
 	} else if ip6 := packet.Layer(layers.LayerTypeIPv6); ip6 != nil {
 		ip := ip6.(*layers.IPv6).SrcIP
 		if ip16 := ip.To16(); ip16 != nil {
 			addr, _ := netip.AddrFromSlice(ip16)
-			return newIPAddress(addr), nil
+			return NewIPAddress(addr)
 		}
 	}
 	return IPAddress{}, fmt.Errorf("source IP not found in packet")

@@ -102,7 +102,10 @@ func processCSVRecord(collector *Collector, record []string) error {
 		queryCount = uint64(parsed)
 	}
 
-	clientIP := newIPAddressFromString(clientStr)
+	clientIP, err := NewIPAddressFromString(clientStr)
+	if err != nil {
+		return fmt.Errorf("invalid client IP address: %w", err)
+	}
 
 	// Update statistics with the specified query count
 	if err := collector.ProcessRecord(domainStr, clientIP, queryCount); err != nil {
