@@ -13,9 +13,6 @@ import (
 
 // Marshal the HLLs in a MagnitudeDataset to CBOR format.
 func (hw HLLWrapper) MarshalCBOR() ([]byte, error) {
-	if hw.Hll == nil {
-		return cbor.Marshal(nil)
-	}
 	// Wrap the raw bytes in a CBOR binary encoding
 	raw := hw.ToBytes()
 	return cbor.Marshal(raw)
@@ -88,7 +85,9 @@ func LoadDNSMagFile(filename string) (MagnitudeDataset, error) {
 	dec := cbor.NewDecoder(file)
 	err = dec.Decode(&stats)
 
-	stats.finaliseStats()
+	if err == nil {
+		stats.finaliseStats()
+	}
 
 	return stats, err
 }

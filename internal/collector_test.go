@@ -297,7 +297,7 @@ func TestCollectorGzippedCSV(t *testing.T) {
 	gzipWriter.Close()
 	tmpFile.Close()
 
-	testDate := time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)
+	testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
 

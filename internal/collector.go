@@ -82,10 +82,6 @@ func (c *Collector) migrateCurrent() error {
 // Since "current" is not public, we need a public method to set the date
 func (c *Collector) SetDate(date *time.Time) {
 	c.current.SetDate(date)
-
-	if c.Result.Date == nil {
-		c.Result.Date = c.current.Date // Set the date for the result dataset if not already set
-	}
 }
 
 func (c *Collector) finalise() error {

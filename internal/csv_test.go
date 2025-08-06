@@ -238,7 +238,7 @@ func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
 2001:db8::1,example.net,1`
 
 	reader := strings.NewReader(csvData)
-	testDate := time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)
+	testDate := time.Date(2007, 9, 9, 0, 0, 0, 0, time.UTC)
 
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, true, &testDate, timing)
