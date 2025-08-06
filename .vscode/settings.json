@@ -11,6 +11,7 @@
         "gopacket",
         "nosec",
         "pcapgo",
+        "Regwidth",
         "segmentio",
         "Thulin",
         "zeebo"

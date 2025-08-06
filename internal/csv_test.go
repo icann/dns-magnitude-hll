@@ -1,12 +1,7 @@
 package internal
 
 import (
-	"fmt"
-	"math"
-	"net/netip"
 	"os"
-	"reflect"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -28,31 +23,29 @@ func TestLoadCSVFromReader(t *testing.T) {
 	testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
 
 	verbose := false
-	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
 	collector.finalise()
+	timing.Finish() // for coverage
+
 	dataset := collector.Result
 
 	if dataset.Date.Time != testDate {
 		t.Errorf("Expected date %v, got %v", testDate, dataset.Date.Time)
 	}
 
-	// check the TLDs are counted
-	expectedDomains := []string{"com", "org"}
-	for _, domain := range expectedDomains {
-		if _, exists := dataset.Domains[DomainName(domain)]; !exists {
-			t.Errorf("Expected domain %s not found in dataset", domain)
-		}
-	}
-
-	// check total queries count
-	if dataset.AllQueriesCount != 14 {
-		t.Errorf("Expected total queries count 14, got %d", dataset.AllQueriesCount)
-	}
+	validateDataset(t, dataset, DatasetExpected{
+		queriesCount:    14,
+		domainCount:     2,
+		expectedDomains: []string{"com", "org"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
 
 	// check that unique clients are not counted when verbose is false
 	c := len(dataset.extraAllClients)
@@ -73,7 +66,8 @@ func TestLoadCSVFromReader_VerboseMode(t *testing.T) {
 	testDate := time.Date(2007, 9, 9, 0, 0, 0, 0, time.UTC)
 
 	verbose := true
-	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
@@ -86,31 +80,18 @@ func TestLoadCSVFromReader_VerboseMode(t *testing.T) {
 		t.Errorf("Expected date %v, got %v", testDate, dataset.Date.Time)
 	}
 
-	// check the TLDs are counted
-	expectedDomains := []string{"com", "org"}
-	for _, domain := range expectedDomains {
-		if _, exists := dataset.Domains[DomainName(domain)]; !exists {
-			t.Errorf("Expected domain %s not found in dataset", domain)
-		}
-	}
+	validateDataset(t, dataset, DatasetExpected{
+		queriesCount:    10,
+		domainCount:     2,
+		expectedDomains: []string{"com", "org"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
 
-	// check total queries count
-	if dataset.AllQueriesCount != 10 {
-		t.Errorf("Expected total queries count 10, got %d", dataset.AllQueriesCount)
-	}
-
-	// extract unique IPs from dataset to a slice for easier verification
-	var uniqueIPs []string
-	for ip := range dataset.extraAllClients {
-		uniqueIPs = append(uniqueIPs, ip.String())
-	}
-	slices.Sort(uniqueIPs)
-
-	expectedIPs := []string{"192.168.1.0", "2001:db8::"}
-
-	if !reflect.DeepEqual(uniqueIPs, expectedIPs) {
-		t.Errorf("Expected unique IPs %v, got %v", expectedIPs, uniqueIPs)
-	}
+	validateDatasetExtras(t, dataset, DatasetExtrasExpected{
+		expectedAllClients: []string{"192.168.1.0", "2001:db8::"},
+		expectedV6Clients:  []string{"2001:db8::"},
+	})
 
 	// Verify "net" domain is not counted
 	if _, exists := dataset.Domains[DomainName("net")]; exists {
@@ -123,54 +104,111 @@ func TestLoadCSVFromReader_InvalidRecord(t *testing.T) {
 
 	reader := strings.NewReader(csvData)
 
-	collector := NewCollector(DefaultDomainCount, 100000, false, nil)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err == nil {
 		t.Error("Expected error for invalid CSV record, got nil")
 	}
 }
 
-func TestProcessCSVRecord_ErrorCases(t *testing.T) {
+func TestLoadCSVFile_InvalidFile(t *testing.T) {
 	tests := []struct {
-		name   string
-		record []string
-		errMsg string
+		name        string
+		content     []byte
+		errorPrefix string
 	}{
 		{
-			name:   "negative queries_count",
-			record: []string{"192.168.1.1", "example.com", "-5"},
-			errMsg: "queries_count must be non-negative",
+			name:        "single byte file",
+			content:     []byte("x"),
+			errorPrefix: "failed to read CSV: ",
 		},
 		{
-			name:   "invalid queries_count",
-			record: []string{"192.168.1.1", "example.com", "invalid"},
-			errMsg: "invalid queries_count",
-		},
-		{
-			name:   "too few fields",
-			record: []string{"192.168.1.1"},
-			errMsg: "CSV record must have at least two fields",
-		},
-		{
-			name:   "zero queries_count",
-			record: []string{"192.168.1.1", "example.com", "0"},
-			errMsg: "", // Should not error, just skip
-		},
-		{
-			name:   "invalid domain name",
-			record: []string{"192.168.1.1", "123"},
-			errMsg: "", // Should not error, just skip
-		},
-		{
-			name:   "invalid domain name (unbalanced quotes)",
-			record: []string{"192.168.1.1", "un\"balanced"},
-			errMsg: "", // Should not error, just skip
+			name:        "three byte file",
+			content:     []byte("xyz"),
+			errorPrefix: "failed to parse CSV: ",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := NewCollector(DefaultDomainCount, 100000, false, nil)
+			tmpFile, err := os.CreateTemp("", "invalid_*.csv")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+			defer tmpFile.Close()
+
+			if _, err := tmpFile.Write(tt.content); err != nil {
+				t.Fatalf("Failed to write to temp file: %v", err)
+			}
+			tmpFile.Close()
+
+			timing := NewTimingStats()
+			collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
+
+			err = LoadCSVFile(tmpFile.Name(), collector)
+			if err == nil {
+				t.Error("Expected error for invalid CSV file, got nil")
+				return
+			}
+
+			if !strings.HasPrefix(err.Error(), tt.errorPrefix) {
+				t.Errorf("Expected error to start with '%s', got: %v", tt.errorPrefix, err)
+			}
+		})
+	}
+}
+
+func TestProcessCSVRecord_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name                   string
+		record                 []string
+		errMsg                 string
+		expectedInvalidRecords uint
+	}{
+		{
+			name:                   "negative queries_count",
+			record:                 []string{"192.168.1.1", "example.com", "-5"},
+			errMsg:                 "queries_count must be non-negative",
+			expectedInvalidRecords: 0,
+		},
+		{
+			name:                   "invalid queries_count",
+			record:                 []string{"192.168.1.1", "example.com", "invalid"},
+			errMsg:                 "invalid queries_count",
+			expectedInvalidRecords: 0,
+		},
+		{
+			name:                   "too few fields",
+			record:                 []string{"192.168.1.1"},
+			errMsg:                 "CSV record must have at least two fields",
+			expectedInvalidRecords: 0,
+		},
+		{
+			name:                   "zero queries_count",
+			record:                 []string{"192.168.1.1", "example.com", "0"},
+			errMsg:                 "", // Should not error, just skip
+			expectedInvalidRecords: 0,
+		},
+		{
+			name:                   "invalid domain name",
+			record:                 []string{"192.168.1.1", "123"},
+			errMsg:                 "", // Should not error, just skip
+			expectedInvalidRecords: 1,
+		},
+		{
+			name:                   "invalid domain name (unbalanced quotes)",
+			record:                 []string{"192.168.1.1", "un\"balanced"},
+			errMsg:                 "", // Should not error, just skip
+			expectedInvalidRecords: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			timing := NewTimingStats()
+			collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
 			err := processCSVRecord(collector, tt.record)
 
 			dataset := collector.Result
@@ -181,51 +219,15 @@ func TestProcessCSVRecord_ErrorCases(t *testing.T) {
 			if tt.errMsg != "" && err == nil {
 				t.Errorf("expected error but got none")
 			}
-			if tt.errMsg == "" && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
 			if tt.errMsg != "" && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
 				t.Errorf("expected error message to contain '%s', got '%s'", tt.errMsg, err.Error())
 			}
+
+			if collector.invalidDomainCount != tt.expectedInvalidRecords {
+				t.Errorf("Expected %d invalid domain records, got %d", tt.expectedInvalidRecords, collector.invalidDomainCount)
+			}
 		})
 	}
-}
-
-// buildExpectedDataset creates a test dataset with the given configuration
-func buildExpectedDataset(date time.Time, totalQueries uint64, domains []struct {
-	domain     DomainName
-	queryCount uint64
-	clientIPs  []string
-}, allClientIPs []string, v6ClientIPs []string,
-) MagnitudeDataset {
-	expected := newDataset()
-	expected.Date = &TimeWrapper{Time: date}
-	expected.AllQueriesCount = totalQueries
-
-	// Initialize domains
-	for _, ed := range domains {
-		domain := newDomain(ed.domain)
-		domain.QueriesCount = ed.queryCount
-		domain.extraAllClients = make(map[netip.Addr]struct{})
-		for _, ip := range ed.clientIPs {
-			domain.extraAllClients[newIPAddressFromString(ip).truncatedIP] = struct{}{}
-		}
-		expected.Domains[ed.domain] = domain
-		expected.extraAllDomains[ed.domain] = struct{}{}
-	}
-
-	// Initialize global client IPs
-	expected.extraAllClients = make(map[netip.Addr]struct{})
-	for _, ip := range allClientIPs {
-		expected.extraAllClients[newIPAddressFromString(ip).truncatedIP] = struct{}{}
-	}
-
-	expected.extraV6Clients = make(map[netip.Addr]struct{})
-	for _, ip := range v6ClientIPs {
-		expected.extraV6Clients[newIPAddressFromString(ip).truncatedIP] = struct{}{}
-	}
-
-	return expected
 }
 
 func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
@@ -236,9 +238,10 @@ func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
 2001:db8::1,example.net,1`
 
 	reader := strings.NewReader(csvData)
-	testDate := time.Date(2023, 6, 15, 0, 0, 0, 0, time.UTC)
+	testDate := time.Date(2007, 9, 9, 0, 0, 0, 0, time.UTC)
 
-	collector := NewCollector(DefaultDomainCount, 100000, true, &testDate)
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, true, &testDate, timing)
 	err := LoadCSVFromReader(reader, collector)
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
@@ -247,183 +250,54 @@ func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
 	collector.finalise()
 	dataset := collector.Result
 
-	// Build expected dataset using helper function
-	expectedDomains := []struct {
-		domain     DomainName
-		queryCount uint64
-		clientIPs  []string
-	}{
-		{
-			domain:     DomainName("com"),
-			queryCount: 7,
-			clientIPs:  []string{"192.168.1.10", "10.0.0.5"},
+	// Verify date was set correctly
+	if dataset.Date.Time != testDate {
+		t.Errorf("Date mismatch: expected %v, got %v", testDate, dataset.Date.Time)
+	}
+
+	validateDataset(t, dataset, DatasetExpected{
+		queriesCount:    11,
+		domainCount:     3,
+		expectedDomains: []string{"com", "org", "net"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
+
+	validateDatasetExtras(t, dataset, DatasetExtrasExpected{
+		expectedAllClients: []string{"10.0.0.0", "192.168.1.0", "2001:db8::"},
+		expectedV6Clients:  []string{"2001:db8::"},
+	})
+
+	validateDatasetDomains(t, dataset, DatasetDomainsExpected{
+		expectedDomains: map[DomainName]uint64{
+			"com": 7, // 5 + 2
+			"org": 3,
+			"net": 1,
 		},
-		{
-			domain:     DomainName("org"),
-			queryCount: 3,
-			clientIPs:  []string{"192.168.1.20"},
-		},
-		{
-			domain:     DomainName("net"),
-			queryCount: 1,
-			clientIPs:  []string{"2001:db8::1"},
-		},
-	}
-
-	expected := buildExpectedDataset(
-		testDate,
-		11,
-		expectedDomains,
-		[]string{"192.168.1.10", "10.0.0.5", "2001:db8::1"},
-		[]string{"2001:db8::1"},
-	)
-
-	// Compare key fields (skip HLL data and computed values)
-	if dataset.Date.Time != expected.Date.Time {
-		t.Errorf("Date mismatch: expected %v, got %v", expected.Date.Time, dataset.Date.Time)
-	}
-
-	if dataset.AllQueriesCount != expected.AllQueriesCount {
-		t.Errorf("AllQueriesCount mismatch: expected %d, got %d", expected.AllQueriesCount, dataset.AllQueriesCount)
-	}
-
-	if len(dataset.Domains) != len(expected.Domains) {
-		t.Errorf("Domain count mismatch: expected %d, got %d", len(expected.Domains), len(dataset.Domains))
-	}
-
-	// Compare domain queries counts
-	for domain, expectedDomain := range expected.Domains {
-		actualDomain, exists := dataset.Domains[domain]
-		if !exists {
-			t.Errorf("Expected domain %s not found", domain)
-			continue
-		}
-		if actualDomain.QueriesCount != expectedDomain.QueriesCount {
-			t.Errorf("Domain %s queries count mismatch: expected %d, got %d",
-				domain, expectedDomain.QueriesCount, actualDomain.QueriesCount)
-		}
-	}
-
-	// Compare client IP sets
-	if !reflect.DeepEqual(dataset.extraAllClients, expected.extraAllClients) {
-		t.Errorf("extraAllClients mismatch: expected %v, got %v",
-			expected.extraAllClients, dataset.extraAllClients)
-	}
-
-	if !reflect.DeepEqual(dataset.extraV6Clients, expected.extraV6Clients) {
-		t.Errorf("extraV6Clients mismatch: expected %v, got %v",
-			expected.extraV6Clients, dataset.extraV6Clients)
-	}
+	})
 }
 
-func TestCollectorChunking(t *testing.T) {
-	// Table-driven test cases
-	tests := []struct {
-		name           string
-		numIPs         uint64
-		expectedChunks int // Expected number of chunks processed
-	}{
-		{
-			name:           "90 IPs chunked",
-			numIPs:         90,
-			expectedChunks: 9, // 90 IPs with chunk size 10 results in 9 chunks
-		},
-		{
-			name:           "99 IPs chunked",
-			numIPs:         99,
-			expectedChunks: 10, // 99 IPs with chunk size 10 results in 10 chunks
-		},
-		{
-			name:           "100 IPs chunked",
-			numIPs:         100,
-			expectedChunks: 10, // 100 IPs with chunk size 10 results in 10 chunks
-		},
-		{
-			name:           "101 IPs chunked",
-			numIPs:         101,
-			expectedChunks: 11, // 101 IPs with chunk size 10 results in 11 chunks
-		},
+func TestLoadCSVFromReader_MixedValidInvalidRecords(t *testing.T) {
+	csvData := `192.168.1.1,com,5
+192.168.1.2,invalid"record,3
+10.0.0.1,invalid-domain.example.123,2`
+
+	reader := strings.NewReader(csvData)
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
+	err := LoadCSVFromReader(reader, collector)
+	if err != nil {
+		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	chunkSize := 10 // Set a default chunk size for all tests
+	collector.finalise()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary CSV file
-			tmpFile, err := os.CreateTemp("", "test_*.csv")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
-			defer tmpFile.Close()
-
-			// Generate CSV data with sequential IPs. All queries are for .net for these tests.
-			var i uint64
-			for i = 1; i <= tt.numIPs; i++ {
-				line := fmt.Sprintf("192.168.%d.1,net,1\n", i)
-				if _, err := tmpFile.WriteString(line); err != nil {
-					t.Fatalf("Failed to write to temp file: %v", err)
-				}
-			}
-			tmpFile.Close()
-
-			// Load temp file using a Collector
-			testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
-			collector := NewCollector(DefaultDomainCount, chunkSize, true, &testDate)
-			timing := NewTimingStats()
-
-			err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv", timing)
-			if err != nil {
-				t.Fatalf("ProcessFiles failed: %v", err)
-			}
-
-			dataset := collector.Result
-
-			// Verify basic properties
-			if dataset.AllQueriesCount != tt.numIPs {
-				t.Errorf("Expected %d queries, got %d", tt.numIPs, dataset.AllQueriesCount)
-			}
-
-			numClients := uint64(len(dataset.extraAllClients))
-			if numClients != tt.numIPs {
-				t.Errorf("Expected %d unique IPs, got %d", tt.numIPs, numClients)
-			}
-
-			numDomains := len(dataset.extraAllDomains)
-			if numDomains != 1 {
-				t.Errorf("Expected %d unique domains, got %d", 1, numDomains)
-			}
-
-			// Check that "net" domain exists
-			netDomain, exists := dataset.Domains[DomainName("net")]
-			if !exists {
-				t.Fatal("Expected domain not found")
-			}
-
-			if netDomain.QueriesCount != tt.numIPs {
-				t.Errorf("Expected %d queries for .net domain, got %d", tt.numIPs, netDomain.QueriesCount)
-			}
-
-			// Verify HLL estimate is reasonable (within expected error range)
-			hllEstimate := makeInt(dataset.AllClientsCount)
-			errorRate := float64(abs(hllEstimate-makeInt(tt.numIPs))) / float64(tt.numIPs)
-			if errorRate > 0.05 { // Allow 5% error for HLL
-				t.Errorf("HLL estimate %d too far from actual %d (error rate: %.2f%%)",
-					hllEstimate, tt.numIPs, errorRate*100)
-			}
-		})
-	}
-}
-
-// Helper function to safely convert uint64 to int without overflow
-func makeInt(u uint64) int {
-	if u > uint64(math.MaxInt) {
-		return math.MaxInt
-	}
-	return int(u)
-}
-
-// Helper function for absolute value
-func abs(x int) int {
-	return max(x, -x)
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:    5,
+		domainCount:     1,
+		expectedDomains: []string{"com"},
+		invalidDomains:  1,
+		invalidRecords:  1,
+	}, collector)
 }

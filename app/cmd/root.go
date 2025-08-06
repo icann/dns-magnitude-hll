@@ -11,8 +11,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "dnsmag",
-	Short: "DNS Magnitude analyzer for processing DNS traffic statistics",
-	Long: `DNS Magnitude is a tool for analyzing DNS traffic and computing domain statistics.
+	Short: "DNS Magnitude analyser for processing DNS traffic statistics",
+	Long: `DNS Magnitude is a tool for analysing DNS traffic and computing domain statistics.
 It can parse PCAP files, view/save DNSMAG data (CBOR), aggregate multiple datasets and make a JSON report.`,
 }
 

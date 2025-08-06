@@ -10,3 +10,9 @@ const DefaultDNSDomainNameLabels = 1
 
 // Default number of (million) queries collected after which to aggregate results (to preserve memory)
 const DefaultCollectDomainsChunk = 0
+
+// IP address truncation mask lengths
+const (
+	DefaultIPv4MaskLength = 24
+	DefaultIPv6MaskLength = 48
+)

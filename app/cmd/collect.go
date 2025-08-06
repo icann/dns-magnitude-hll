@@ -21,7 +21,7 @@ Save them to a DNSMAG file (CBOR format).`,
 		timing := internal.NewTimingStats()
 
 		var (
-			top      int
+			topCount int
 			output   string
 			filetype string
 			dateStr  string
@@ -31,7 +31,7 @@ Save them to a DNSMAG file (CBOR format).`,
 		)
 
 		parseFlags(cmd, map[string]any{
-			"top":      &top,
+			"top":      &topCount,
 			"output":   &output,
 			"filetype": &filetype,
 			"date":     &dateStr,
@@ -64,8 +64,14 @@ Save them to a DNSMAG file (CBOR format).`,
 		}
 
 		// Collect all datasets from input files
-		collector := internal.NewCollector(top, chunk*1000*1000, verbose, date)
-		err := collector.ProcessFiles(args, filetype, timing)
+		var chunkSize uint
+		if chunk < 0 {
+			chunkSize = 0
+		} else {
+			chunkSize = uint(chunk) * 1000 * 1000
+		}
+		collector := internal.NewCollector(topCount, chunkSize, verbose, date, timing)
+		err := collector.ProcessFiles(args, filetype)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
@@ -83,31 +89,19 @@ Save them to a DNSMAG file (CBOR format).`,
 				fmt.Fprintf(os.Stderr, "Failed to write DNSMAG to %s: %v\n", output, err)
 			} else {
 				if !quiet {
-					fmt.Printf("Saved aggregated statistics to %s\n", output)
+					fmt.Printf("Saved aggregated statistics to %s\n\n", output)
 				}
 			}
 		}
 
-		// Print statistics
-		if !quiet {
-			if len(args) == 1 {
-				fmt.Printf("Statistics for %s:\n", args[0])
-			} else {
-				fmt.Printf("Aggregated statistics for %d files:\n", len(args))
-			}
-		}
-		if err := internal.OutputDomainStats(collector.Result, quiet, verbose); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
-		if !quiet {
-			fmt.Println()
-		}
-
-		// Print timing statistics at the end
 		timing.Finish()
-		if err := internal.OutputTimingStats(timing, quiet); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to format timing statistics: %v\n", err)
+
+		if !quiet {
+			// Print statistics and timing
+			if err := internal.OutputCollectorStats(os.Stdout, collector, verbose); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				os.Exit(1)
+			}
 		}
 	},
 }

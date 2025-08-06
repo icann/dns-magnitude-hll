@@ -12,7 +12,7 @@ import (
 	"github.com/segmentio/go-hll"
 )
 
-// Need to wrap the hll.Hll type to use custom CBOR marshalling/unmarshalling
+// Need to wrap the hll.Hll type to use custom CBOR marshalling/un-marshalling
 type HLLWrapper struct {
 	*hll.Hll
 }
@@ -24,15 +24,16 @@ type TimeWrapper struct {
 
 // Main data structure for storing domain statistics. This matches the structure of the CBOR files.
 type MagnitudeDataset struct {
-	Version         uint16                   `cbor:"version"`
-	Date            *TimeWrapper             `cbor:"date"`              // UTC date of collection
-	AllClientsHll   *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
-	AllClientsCount uint64                   `cbor:"all_clients_count"` // Cardinality of GlobalHll
-	AllQueriesCount uint64                   `cbor:"all_queries_count"`
-	Domains         map[DomainName]domainHll `cbor:"domains"`
-	extraAllClients map[netip.Addr]struct{}  // All clients, only used when printing stats in collect command
-	extraV6Clients  map[netip.Addr]struct{}  // IPv6 clients, only used when printing stats in collect command
-	extraAllDomains map[DomainName]struct{}  // All domains before any truncation
+	Version             uint16                   `cbor:"version"`
+	Date                *TimeWrapper             `cbor:"date"`              // UTC date of collection
+	AllClientsHll       *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
+	AllClientsCount     uint64                   `cbor:"all_clients_count"` // Cardinality of GlobalHll
+	AllQueriesCount     uint64                   `cbor:"all_queries_count"`
+	Domains             map[DomainName]domainHll `cbor:"domains"`
+	extraAllClients     map[netip.Addr]struct{}  // All clients, only used when printing stats in collect command
+	extraV6Clients      map[netip.Addr]struct{}  // IPv6 clients, only used when printing stats in collect command
+	extraAllDomains     map[DomainName]struct{}  // All domains before any truncation
+	extraSourceFilename string                   // Source filename when loaded from file
 }
 
 // Per-domain data
@@ -61,22 +62,21 @@ func InitStats() error {
 	})
 }
 
-func newDataset() MagnitudeDataset {
-	// Get current date without time (start of day in UTC)
-	now := time.Now().UTC()
-	dateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-
-	return MagnitudeDataset{
-		Version:         1,
-		Date:            &TimeWrapper{Time: dateOnly},
-		AllClientsHll:   &HLLWrapper{Hll: &hll.Hll{}},
-		Domains:         make(map[DomainName]domainHll),
-		AllClientsCount: 0,
-		AllQueriesCount: 0,
-		extraAllClients: make(map[netip.Addr]struct{}),
-		extraV6Clients:  make(map[netip.Addr]struct{}),
-		extraAllDomains: make(map[DomainName]struct{}),
+func newDataset(date *time.Time) MagnitudeDataset {
+	dataset := MagnitudeDataset{
+		Version:             1,
+		AllClientsHll:       &HLLWrapper{Hll: &hll.Hll{}},
+		Domains:             make(map[DomainName]domainHll),
+		AllClientsCount:     0,
+		AllQueriesCount:     0,
+		extraAllClients:     make(map[netip.Addr]struct{}),
+		extraV6Clients:      make(map[netip.Addr]struct{}),
+		extraAllDomains:     make(map[DomainName]struct{}),
+		extraSourceFilename: "",
 	}
+
+	dataset.SetDate(date)
+	return dataset
 }
 
 func newDomain(domain DomainName) domainHll {
@@ -91,6 +91,17 @@ func newDomain(domain DomainName) domainHll {
 	return result
 }
 
+func (dataset *MagnitudeDataset) SetDate(date *time.Time) {
+	var dateOnly time.Time
+	if date != nil {
+		dateOnly = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	} else {
+		now := time.Now().UTC()
+		dateOnly = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	}
+	dataset.Date = &TimeWrapper{Time: dateOnly}
+}
+
 func (dataset *MagnitudeDataset) SortedByMagnitude() []DomainMagnitude {
 	var sorted []DomainMagnitude
 
@@ -103,7 +114,19 @@ func (dataset *MagnitudeDataset) SortedByMagnitude() []DomainMagnitude {
 	}
 
 	slices.SortFunc(sorted, func(a, b DomainMagnitude) int {
-		return int(a.Magnitude*1000) - int(b.Magnitude*1000)
+		// First sort by magnitude
+		magnitudeDiff := int(a.Magnitude*1000) - int(b.Magnitude*1000)
+		if magnitudeDiff != 0 {
+			return magnitudeDiff
+		}
+		// If magnitudes are equal, sort by domain name
+		if a.Domain < b.Domain {
+			return -1
+		} else if a.Domain > b.Domain {
+			return 1
+		}
+		// not reached as long as dataset.Domains is a map
+		panic("Encountered two domains with the same name. Impossible.")
 	})
 
 	return sorted
@@ -129,40 +152,46 @@ func (dataset *MagnitudeDataset) Truncate(maxDomains int) {
 }
 
 // count a query for a domain and source IP address.
-func (dataset *MagnitudeDataset) updateStats(domain DomainName, src IPAddress, queryCount uint64, verbose bool) {
-	if domain == "" || queryCount == 0 {
+func (dataset *MagnitudeDataset) updateStats(domainName DomainName, src IPAddress, queryCount uint64, verbose bool) {
+	if queryCount == 0 {
 		return
 	}
 
-	// Ensure domainHll exists for this domain
-	dh, found := dataset.Domains[domain]
+	if domainName == "." {
+		// Just count root domain queries
+		dataset.AllQueriesCount += queryCount
+		return
+	}
+
+	// Fetch (or initialise) domainHll for this domain
+	domain, found := dataset.Domains[domainName]
 	if !found {
-		dh = newDomain(domain)
+		domain = newDomain(domainName)
 	}
 
 	// Record extra information only if verbose mode is enabled, to preserve memory
 	if verbose {
 		// Track all domains before truncation
-		dataset.extraAllDomains[domain] = struct{}{}
+		dataset.extraAllDomains[domainName] = struct{}{}
 
 		// Add the source IP to the set of unique source IPs
 		dataset.extraAllClients[src.truncatedIP] = struct{}{}
-		dh.extraAllClients[src.truncatedIP] = struct{}{}
+		domain.extraAllClients[src.truncatedIP] = struct{}{}
 		if src.ipAddress.Is6() {
 			dataset.extraV6Clients[src.truncatedIP] = struct{}{}
 		}
 	}
 
 	// Increase queriesCount
-	dh.QueriesCount += queryCount
+	domain.QueriesCount += queryCount
 	dataset.AllQueriesCount += queryCount
 
 	// count IP in the two HyperLogLogs
-	dh.Hll.AddRaw(src.hash)
+	domain.Hll.AddRaw(src.hash)
 	dataset.AllClientsHll.AddRaw(src.hash)
 
 	// Save updated domainHll back to the map
-	dataset.Domains[domain] = dh
+	dataset.Domains[domainName] = domain
 }
 
 // update the clientsCount for each domain and the global clientsCount after all queries have been processed.
@@ -187,19 +216,18 @@ func AggregateDatasets(datasets []MagnitudeDataset) (MagnitudeDataset, error) {
 	}
 
 	// Verify all input datasets have the same version and date
-	for i, dataset := range datasets {
+	for _, dataset := range datasets {
 		if dataset.Version != datasets[0].Version {
-			e := fmt.Errorf("version mismatch: dataset %d has version %d, expected %d", i, dataset.Version, datasets[0].Version)
+			e := fmt.Errorf("version mismatch: dataset %s has version %d, expected %d", dataset.extraSourceFilename, dataset.Version, datasets[0].Version)
 			return MagnitudeDataset{}, e
 		}
 		if dataset.DateString() != datasets[0].DateString() {
-			e := fmt.Errorf("date mismatch: dataset %d has date %s, expected %s", i, dataset.DateString(), datasets[0].DateString())
+			e := fmt.Errorf("date mismatch: dataset %s has date %s, expected %s", dataset.extraSourceFilename, dataset.DateString(), datasets[0].DateString())
 			return MagnitudeDataset{}, e
 		}
 	}
 
-	res := newDataset()
-	res.Date = datasets[0].Date
+	res := newDataset(&datasets[0].Date.Time)
 
 	// Aggregate global HLL
 	for _, dataset := range datasets {

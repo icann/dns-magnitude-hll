@@ -39,7 +39,7 @@ var viewCmd = &cobra.Command{
 		stats.Truncate(top)
 
 		// Format and print the domain statistics
-		if err := internal.OutputDomainStats(stats, false, verbose); err != nil {
+		if err := internal.OutputDatasetStats(os.Stdout, stats, verbose); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}

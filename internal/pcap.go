@@ -50,18 +50,16 @@ func processPackets(reader *pcapgo.Reader, collector *Collector) error {
 
 			src, err := extractSrcIP(packet)
 			if err != nil {
-				// Skip packets without valid source IP
+				collector.invalidRecordCount++
 				continue
 			}
 
 			for _, this := range dns.Questions {
-				name, err := getDomainName(string(this.Name), DefaultDNSDomainNameLabels)
-				if err != nil {
-					// TODO: Log/analyse skipped domain names?
-					continue
-				}
+				name := string(this.Name)
 
-				collector.ProcessRecord(name, src, 1)
+				if err := collector.ProcessRecord(name, src, 1); err != nil {
+					return fmt.Errorf("failed to process record: %w", err)
+				}
 			}
 		}
 	}
@@ -75,13 +73,13 @@ func extractSrcIP(packet gopacket.Packet) (IPAddress, error) {
 		ip := ip4.(*layers.IPv4).SrcIP
 		if ip4 := ip.To4(); ip4 != nil {
 			addr, _ := netip.AddrFromSlice(ip4)
-			return newIPAddress(addr), nil
+			return NewIPAddress(addr)
 		}
 	} else if ip6 := packet.Layer(layers.LayerTypeIPv6); ip6 != nil {
 		ip := ip6.(*layers.IPv6).SrcIP
 		if ip16 := ip.To16(); ip16 != nil {
 			addr, _ := netip.AddrFromSlice(ip16)
-			return newIPAddress(addr), nil
+			return NewIPAddress(addr)
 		}
 	}
 	return IPAddress{}, fmt.Errorf("source IP not found in packet")

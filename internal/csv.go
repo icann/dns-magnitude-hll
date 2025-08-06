@@ -22,7 +22,7 @@ func LoadCSVFile(filename string, collector *Collector) error {
 
 	reader, err := getReaderFromFile(file)
 	if err != nil {
-		return fmt.Errorf("failed to parse CSV: %w", err)
+		return fmt.Errorf("failed to read CSV: %w", err)
 	}
 
 	err = LoadCSVFromReader(reader, collector)
@@ -64,7 +64,7 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector) error {
 			break
 		}
 		if err != nil {
-			// TODO: Log or otherwise handle errors?
+			collector.invalidRecordCount++
 			continue
 		}
 
@@ -102,16 +102,15 @@ func processCSVRecord(collector *Collector, record []string) error {
 		queryCount = uint64(parsed)
 	}
 
-	clientIP := newIPAddressFromString(clientStr)
-
-	domainName, err := getDomainName(domainStr, DefaultDNSDomainNameLabels)
+	clientIP, err := NewIPAddressFromString(clientStr)
 	if err != nil {
-		// TODO: Log or otherwise handle errors?
-		return nil
+		return fmt.Errorf("invalid client IP address: %w", err)
 	}
 
 	// Update statistics with the specified query count
-	collector.ProcessRecord(domainName, clientIP, queryCount)
+	if err := collector.ProcessRecord(domainStr, clientIP, queryCount); err != nil {
+		return fmt.Errorf("failed to process record: %w", err)
+	}
 
 	return nil
 }
