@@ -38,7 +38,6 @@ type MagnitudeDataset struct {
 
 // Per-domain data
 type domainData struct {
-	Domain          DomainName              `cbor:"domain"`        // Domain name
 	Hll             *HLLWrapper             `cbor:"clients_hll"`   // HLL counter for unique source IPs
 	ClientsCount    uint64                  `cbor:"clients_count"` // Number of clients querying this domain (cardinality of HLL)
 	QueriesCount    uint64                  `cbor:"queries_count"` // Number of queries for this domain (absolute count)
@@ -81,7 +80,6 @@ func newDataset(date *time.Time) MagnitudeDataset {
 
 func newDomain(domain DomainName) domainData {
 	result := domainData{
-		Domain:          domain,
 		Hll:             &HLLWrapper{Hll: &hll.Hll{}},
 		ClientsCount:    0,
 		QueriesCount:    0,
@@ -105,12 +103,12 @@ func (dataset *MagnitudeDataset) SetDate(date *time.Time) {
 func (dataset *MagnitudeDataset) SortedByMagnitude() []DomainMagnitude {
 	var sorted []DomainMagnitude
 
-	for _, this := range dataset.Domains {
+	for name, this := range dataset.Domains {
 		numSrcIPs := this.ClientsCount
 
 		magnitude := (math.Log(float64(numSrcIPs)) / math.Log(float64(dataset.AllClientsCount))) * 10
 
-		sorted = append(sorted, DomainMagnitude{this.Domain, magnitude, &this})
+		sorted = append(sorted, DomainMagnitude{name, magnitude, &this})
 	}
 
 	slices.SortFunc(sorted, func(a, b DomainMagnitude) int {
