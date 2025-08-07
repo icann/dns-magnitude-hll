@@ -44,6 +44,9 @@ def main():
         if args.debug:
             dump_cbor(data)
         dataset_schema.validate_cbor(cbor_data)
+        print(
+            f"Dataset {filename} is valid according to the schema {DATASET_CDDL.name}"
+        )
 
 
 if __name__ == "__main__":

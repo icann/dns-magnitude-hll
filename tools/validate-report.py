@@ -35,6 +35,9 @@ def main():
         if args.debug:
             print(json.dumps(report_data, indent=4))
         report_schema.validate(report_data)
+        print(
+            f"Report {filename} is valid according to the schema {REPORT_SCHEMA.name}"
+        )
 
 
 if __name__ == "__main__":
