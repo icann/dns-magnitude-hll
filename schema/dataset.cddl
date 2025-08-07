@@ -1,12 +1,12 @@
 ; DNS Magnitude Dataset
 
 magnitude_dataset = {
-  version: uint               ; "Dataset version (1)"
-  date: tcaldate              ; "UTC day of data collected"
-  all_clients_hll: bstr       ; "Aggregate Knowledge HLL of all clients"
-  all_clients_count: uint     ; "Number of unique clients in total"
-  all_queries_count: uint     ; "Number of queries in total"
-  domains: [ * domain_data ]  ; "Array of domain data"
+  version: uint                       ; "Dataset version (1)"
+  date: tcaldate                      ; "UTC day of data collected"
+  all_clients_hll: bstr               ; "Aggregate Knowledge HLL of all clients"
+  all_clients_count: uint             ; "Number of unique clients in total"
+  all_queries_count: uint             ; "Number of queries in total"
+  domains: { * tstr => domain_data }  ; "Map of domain data by domain name without trailing dot"
 }
 
 tcaldate = #6.1004(tstr)  ; Calendar date as an RFC 3339 full-date string
