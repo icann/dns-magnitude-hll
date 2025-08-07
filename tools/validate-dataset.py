@@ -41,8 +41,12 @@ def main():
         with open(filename, "rb") as fp:
             cbor_data = fp.read()
             data = cbor2.loads(cbor_data)
-        dump_cbor(data)
+        if args.debug:
+            dump_cbor(data)
         dataset_schema.validate_cbor(cbor_data)
+        print(
+            f"Dataset {filename} is valid according to the schema {DATASET_CDDL.name}"
+        )
 
 
 if __name__ == "__main__":
