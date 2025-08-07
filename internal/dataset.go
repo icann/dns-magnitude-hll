@@ -24,20 +24,20 @@ type TimeWrapper struct {
 
 // Main data structure for storing domain statistics. This matches the structure of the CBOR files.
 type MagnitudeDataset struct {
-	Version             uint16                   `cbor:"version"`
-	Date                *TimeWrapper             `cbor:"date"`              // UTC date of collection
-	AllClientsHll       *HLLWrapper              `cbor:"all_clients_hll"`   // HLL for all unique source IPs
-	AllClientsCount     uint64                   `cbor:"all_clients_count"` // Cardinality of GlobalHll
-	AllQueriesCount     uint64                   `cbor:"all_queries_count"`
-	Domains             map[DomainName]domainHll `cbor:"domains"`
-	extraAllClients     map[netip.Addr]struct{}  // All clients, only used when printing stats in collect command
-	extraV6Clients      map[netip.Addr]struct{}  // IPv6 clients, only used when printing stats in collect command
-	extraAllDomains     map[DomainName]struct{}  // All domains before any truncation
-	extraSourceFilename string                   // Source filename when loaded from file
+	Version             uint16                    `cbor:"version"`
+	Date                *TimeWrapper              `cbor:"date"`              // UTC date of collection
+	AllClientsHll       *HLLWrapper               `cbor:"all_clients_hll"`   // HLL for all unique source IPs
+	AllClientsCount     uint64                    `cbor:"all_clients_count"` // Cardinality of GlobalHll
+	AllQueriesCount     uint64                    `cbor:"all_queries_count"`
+	Domains             map[DomainName]domainData `cbor:"domains"`
+	extraAllClients     map[netip.Addr]struct{}   // All clients, only used when printing stats in collect command
+	extraV6Clients      map[netip.Addr]struct{}   // IPv6 clients, only used when printing stats in collect command
+	extraAllDomains     map[DomainName]struct{}   // All domains before any truncation
+	extraSourceFilename string                    // Source filename when loaded from file
 }
 
 // Per-domain data
-type domainHll struct {
+type domainData struct {
 	Domain          DomainName              `cbor:"domain"`        // Domain name
 	Hll             *HLLWrapper             `cbor:"clients_hll"`   // HLL counter for unique source IPs
 	ClientsCount    uint64                  `cbor:"clients_count"` // Number of clients querying this domain (cardinality of HLL)
@@ -49,7 +49,7 @@ type domainHll struct {
 type DomainMagnitude struct {
 	Domain    DomainName
 	Magnitude float64
-	DomainHll *domainHll
+	DomainHll *domainData
 }
 
 func InitStats() error {
@@ -66,7 +66,7 @@ func newDataset(date *time.Time) MagnitudeDataset {
 	dataset := MagnitudeDataset{
 		Version:             1,
 		AllClientsHll:       &HLLWrapper{Hll: &hll.Hll{}},
-		Domains:             make(map[DomainName]domainHll),
+		Domains:             make(map[DomainName]domainData),
 		AllClientsCount:     0,
 		AllQueriesCount:     0,
 		extraAllClients:     make(map[netip.Addr]struct{}),
@@ -79,8 +79,8 @@ func newDataset(date *time.Time) MagnitudeDataset {
 	return dataset
 }
 
-func newDomain(domain DomainName) domainHll {
-	result := domainHll{
+func newDomain(domain DomainName) domainData {
+	result := domainData{
 		Domain:          domain,
 		Hll:             &HLLWrapper{Hll: &hll.Hll{}},
 		ClientsCount:    0,
@@ -143,7 +143,7 @@ func (dataset *MagnitudeDataset) Truncate(maxDomains int) {
 
 	topDomains := sorted[idx:]
 
-	res := make(map[DomainName]domainHll)
+	res := make(map[DomainName]domainData)
 	for _, dm := range topDomains {
 		res[dm.Domain] = *dm.DomainHll
 	}
