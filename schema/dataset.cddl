@@ -12,7 +12,7 @@ magnitude_dataset = {
 tcaldate = #6.1004(tstr)  ; Calendar date as an RFC 3339 full-date string
 
 domain_data = {
-  domain: tstr         ; "Domain name without trailing dot"
+  ? domain: tstr       ; "Domain name without trailing dot"
   clients_hll: bstr    ; "Aggregate Knowledge HLL of domain clients"
   clients_count: uint  ; "Number of unique clients for domain" 
   queries_count: uint  ; "Number of queries for domain"
