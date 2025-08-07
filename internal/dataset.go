@@ -78,7 +78,7 @@ func newDataset(date *time.Time) MagnitudeDataset {
 	return dataset
 }
 
-func newDomain(domain DomainName) domainData {
+func newDomain() domainData {
 	result := domainData{
 		Hll:             &HLLWrapper{Hll: &hll.Hll{}},
 		ClientsCount:    0,
@@ -164,7 +164,7 @@ func (dataset *MagnitudeDataset) updateStats(domainName DomainName, src IPAddres
 	// Fetch (or initialise) domainHll for this domain
 	domain, found := dataset.Domains[domainName]
 	if !found {
-		domain = newDomain(domainName)
+		domain = newDomain()
 	}
 
 	// Record extra information only if verbose mode is enabled, to preserve memory
@@ -255,7 +255,7 @@ func AggregateDatasets(datasets []MagnitudeDataset) (MagnitudeDataset, error) {
 			// Fetch or initialise domainHll
 			this, found := res.Domains[domain]
 			if !found {
-				this = newDomain(domain)
+				this = newDomain()
 			}
 			this.QueriesCount += domainData.QueriesCount
 			if err := this.Hll.StrictUnion(*domainData.Hll.Hll); err != nil {

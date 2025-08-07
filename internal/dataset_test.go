@@ -111,7 +111,7 @@ func TestMagnitudeDataset_SortedByMagnitude(t *testing.T) {
 
 			// Create mock domains with specified client counts
 			for _, domain := range tt.domains {
-				dh := newDomain(domain.name)
+				dh := newDomain()
 				dh.ClientsCount = domain.clientsCount
 				dataset.Domains[domain.name] = dh
 			}
@@ -212,7 +212,7 @@ func TestMagnitudeDataset_Truncate(t *testing.T) {
 			// This way, lower numbered domains have higher magnitude and will be kept after truncation
 			for i := uint(0); i < tt.totalDomains; i++ {
 				domainName := DomainName(fmt.Sprintf("%d.example.org", i))
-				dh := newDomain(domainName)
+				dh := newDomain()
 				// Give each domain a decreasing client count (n, n-1, n-2, ..., 1)
 				// This creates predictable magnitudes where lower numbers = higher magnitude
 				dh.ClientsCount = uint64(tt.totalDomains - i)
@@ -286,7 +286,7 @@ func TestAggregateDatasets_ValidationErrors(t *testing.T) {
 		dataset.extraSourceFilename = filename
 
 		// Add a simple domain for testing
-		domain := newDomain("test.example.org")
+		domain := newDomain()
 		domain.ClientsCount = 10
 		domain.QueriesCount = 100
 		dataset.Domains["test.example.org"] = domain
@@ -406,17 +406,17 @@ func TestAggregateDatasets_Success(t *testing.T) {
 	dataset1.AllQueriesCount = 300
 	dataset1.AllClientsCount = 30
 
-	domainA := newDomain("a.example.org")
+	domainA := newDomain()
 	domainA.ClientsCount = 10
 	domainA.QueriesCount = 100
 	dataset1.Domains["a.example.org"] = domainA
 
-	domainB := newDomain("b.example.org")
+	domainB := newDomain()
 	domainB.ClientsCount = 15
 	domainB.QueriesCount = 150
 	dataset1.Domains["b.example.org"] = domainB
 
-	domainC := newDomain("c.example.org")
+	domainC := newDomain()
 	domainC.ClientsCount = 5
 	domainC.QueriesCount = 50
 	dataset1.Domains["c.example.org"] = domainC
@@ -428,17 +428,17 @@ func TestAggregateDatasets_Success(t *testing.T) {
 	dataset2.AllQueriesCount = 250
 	dataset2.AllClientsCount = 25
 
-	domainB2 := newDomain("b.example.org")
+	domainB2 := newDomain()
 	domainB2.ClientsCount = 8
 	domainB2.QueriesCount = 80
 	dataset2.Domains["b.example.org"] = domainB2
 
-	domainC2 := newDomain("c.example.org")
+	domainC2 := newDomain()
 	domainC2.ClientsCount = 12
 	domainC2.QueriesCount = 120
 	dataset2.Domains["c.example.org"] = domainC2
 
-	domainD := newDomain("d.example.org")
+	domainD := newDomain()
 	domainD.ClientsCount = 5
 	domainD.QueriesCount = 50
 	dataset2.Domains["d.example.org"] = domainD
@@ -533,10 +533,10 @@ func TestAggregateDatasets_HLLUnionErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dataset1 := newDataset(nil)
 			domain := DomainName("example.com")
-			dataset1.Domains[domain] = newDomain(domain)
+			dataset1.Domains[domain] = newDomain()
 
 			dataset2 := newDataset(nil)
-			domainData := newDomain(domain)
+			domainData := newDomain()
 			dataset2.Domains[domain] = domainData
 
 			settings := dataset1.AllClientsHll.Settings()
