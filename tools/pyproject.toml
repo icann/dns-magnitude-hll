@@ -4,5 +4,6 @@ version = "0.0.0"
 requires-python = ">=3.12"
 dependencies = [
     "cbor2>=5.6.5",
+    "jsonschema>=4.25.0",
     "pycddl>=0.6.4",
 ]
