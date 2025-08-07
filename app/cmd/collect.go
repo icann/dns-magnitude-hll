@@ -96,10 +96,9 @@ Save them to a DNSMAG file (CBOR format).`,
 					fmt.Fprintf(stderr, "Failed to write DNSMAG to %s: %v\n", output, err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to write DNSMAG to %s: %w", output, err)
-				} else {
-					if !quiet {
-						fmt.Fprintf(stdout, "Saved aggregated statistics to %s\n\n", output)
-					}
+				}
+				if !quiet {
+					fmt.Fprintf(stdout, "Saved aggregated statistics to %s\n\n", output)
 				}
 			}
 
