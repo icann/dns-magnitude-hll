@@ -1,0 +1,8 @@
+[project]
+name = "dns-magnitude-hll"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "cbor2>=5.6.5",
+    "pycddl>=0.6.4",
+]
