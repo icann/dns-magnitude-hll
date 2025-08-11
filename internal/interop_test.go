@@ -43,7 +43,12 @@ func showHllCalculation(ip IPAddress, hll *HLLWrapper) {
 	settings := hll.Settings()
 
 	mBitsMask := uint64((1 << settings.Log2m) - 1)
-	maxRegisterValue := uint64(1<<uint64(settings.Regwidth)) - 1
+	// amazingly elaborate way to cast regwidth to uint64 without linter complaints
+	regWidth64 := uint64(0)
+	if settings.Regwidth > 0 {
+		regWidth64 = uint64(settings.Regwidth)
+	}
+	maxRegisterValue := uint64(1<<regWidth64) - 1
 	pwMaxMask := ^uint64((1 << uint64(maxRegisterValue-1)) - 1)
 
 	// Calculate index (LSB-first)
