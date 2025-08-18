@@ -45,12 +45,12 @@ func TestViewCmd_Integration(t *testing.T) {
 		regexp.MustCompile(`Date\s+:\s+2000-01-01`),
 		regexp.MustCompile(`Total queries\s+:\s+100`),
 		regexp.MustCompile(`Total domains\s+:\s+4`),
-		regexp.MustCompile(`Total unique source IPs\s+:\s+58`),
+		regexp.MustCompile(`Total unique source IPs\s+:\s+70 \(estimated\)`),
 		regexp.MustCompile(`Domain counts:`),
-		regexp.MustCompile(`arpa.*magnitude: 6.317, queries 16, clients 13 \(estimated\), hll size 32`),
-		regexp.MustCompile(`com.*magnitude: 6.317, queries 17, clients 13 \(estimated\), hll size 32`),
-		regexp.MustCompile(`net.*magnitude: 6.669, queries 20, clients 15 \(estimated\), hll size 37`),
-		regexp.MustCompile(`org.*magnitude: 7.722, queries 24, clients 23 \(estimated\), hll size 56`),
+		regexp.MustCompile(`arpa.*magnitude: 6.037, queries 16, clients 13 \(estimated\), hll size 32`),
+		regexp.MustCompile(`com.*magnitude: 6.037, queries 17, clients 13 \(estimated\), hll size 32`),
+		regexp.MustCompile(`net.*magnitude: 6.374, queries 20, clients 15 \(estimated\), hll size 37`),
+		regexp.MustCompile(`org.*magnitude: 7.380, queries 24, clients 23 \(estimated\), hll size 56`),
 	}
 
 	for _, pattern := range expectedPatterns {
