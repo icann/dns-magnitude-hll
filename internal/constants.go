@@ -20,4 +20,4 @@ const (
 )
 
 // regex for domain name validation. Pre-compiled for performance.
-var DomainNameRegex = regexp.MustCompile("^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$")
+var DomainNameRegex = regexp.MustCompile("^[a-z][a-z0-9-]*[a-z0-9]$")
