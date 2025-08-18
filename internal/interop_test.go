@@ -128,7 +128,7 @@ func TestInteropVectors(t *testing.T) {
 }
 
 func TestInteropOneIP(t *testing.T) {
-	domain := DomainName("example.com")
+	domain := "example.com"
 
 	ipStr := "192.0.2.1"
 	expectedHashInput := "00000000000000000000ffffc0000200"
@@ -159,7 +159,7 @@ func TestInteropOneIP(t *testing.T) {
 }
 
 func TestInteropTwoIPs(t *testing.T) {
-	domain := DomainName("example.com")
+	domain := "example.com"
 
 	ip4Str := "192.0.2.1"
 	expectedHashInput4 := "00000000000000000000ffffc0000200"

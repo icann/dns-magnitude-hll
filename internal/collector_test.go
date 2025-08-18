@@ -319,7 +319,7 @@ func TestCollectorGzippedCSV(t *testing.T) {
 	dataset := collector.Result
 
 	validateDataset(t, dataset, DatasetExpected{
-		queriesCount:    10,
+		queriesCount:    11, // 5 + 3 + 2 + 1, count all queries - even invalid ones
 		domainCount:     3,
 		expectedDomains: []string{"com", "org", "net"},
 		invalidDomains:  1,
