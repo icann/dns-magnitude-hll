@@ -4,15 +4,11 @@ package internal
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
 // DomainName represents a normalized domain name (last two labels, lowercased)
 type DomainName string
-
-// regex for domain name validation. Pre-compiled for performance.
-var domainNameRegex = regexp.MustCompile("^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$")
 
 // getDomainName lowercases and extracts the last N labels of a domain name
 func getDomainName(name string, numLabels uint8) (DomainName, error) {
@@ -37,7 +33,7 @@ func getDomainName(name string, numLabels uint8) (DomainName, error) {
 
 	// Validate the TLD using the regex. If "labels" is greater than 1, the caller should validate the rest.
 	tld := split[len(split)-1]
-	if !domainNameRegex.MatchString(tld) {
+	if !DomainNameRegex.MatchString(tld) {
 		return DomainName(""), fmt.Errorf("invalid domain name: %s does not match required pattern", tld)
 	}
 
