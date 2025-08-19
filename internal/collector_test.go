@@ -139,7 +139,7 @@ func TestCollectorPcapLoading(t *testing.T) {
 
 	// Validate exact number of clients
 	if len(dataset.extraAllClients) != 69 {
-		t.Errorf("Expected 57 unique clients, got %d", len(dataset.extraAllClients))
+		t.Errorf("Expected 69 unique clients, got %d", len(dataset.extraAllClients))
 	}
 
 	if len(dataset.extraV6Clients) != 1 {
