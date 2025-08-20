@@ -26,7 +26,7 @@ func validateReportJSON(t *testing.T, jsonData []byte, expectedSource, expectedS
 		{"source", expectedSource},
 		{"sourceType", expectedSourceType},
 		{"date", "2000-01-01"},
-		{"totalUniqueClients", float64(58)},
+		{"totalUniqueClients", float64(70)},
 		{"totalQueryVolume", float64(100)},
 	}
 
@@ -49,25 +49,25 @@ func validateReportJSON(t *testing.T, jsonData []byte, expectedSource, expectedS
 	expectedMagnitudeData := []any{
 		map[string]any{
 			"domain":        "arpa",
-			"magnitude":     6.316919978434491,
+			"magnitude":     6.03731253380026,
 			"uniqueClients": float64(13),
 			"queryVolume":   float64(16),
 		},
 		map[string]any{
 			"domain":        "com",
-			"magnitude":     6.316919978434491,
+			"magnitude":     6.03731253380026,
 			"uniqueClients": float64(13),
 			"queryVolume":   float64(17),
 		},
 		map[string]any{
 			"domain":        "net",
-			"magnitude":     6.669346655201015,
+			"magnitude":     6.374139658435677,
 			"uniqueClients": float64(15),
 			"queryVolume":   float64(20),
 		},
 		map[string]any{
 			"domain":        "org",
-			"magnitude":     7.722049559087894,
+			"magnitude":     7.380246504446294,
 			"uniqueClients": float64(23),
 			"queryVolume":   float64(24),
 		},

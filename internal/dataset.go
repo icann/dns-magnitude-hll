@@ -150,15 +150,40 @@ func (dataset *MagnitudeDataset) Truncate(maxDomains int) {
 }
 
 // count a query for a domain and source IP address.
-func (dataset *MagnitudeDataset) updateStats(domainName DomainName, src IPAddress, queryCount uint64, verbose bool) {
+func (dataset *MagnitudeDataset) updateStats(domainStr string, src IPAddress, queryCount uint64, verbose bool) error {
 	if queryCount == 0 {
-		return
+		return nil
+	}
+
+	// Count queries and unique clients in the global HyperLogLog
+	dataset.AllQueriesCount += queryCount
+	dataset.AllClientsHll.AddRaw(src.hash)
+
+	// Record extra information only if verbose mode is enabled, to preserve memory
+	if verbose {
+		// Add the source IP to the set of unique source IPs
+		dataset.extraAllClients[src.truncatedIP] = struct{}{}
+
+		if src.ipAddress.Is6() {
+			dataset.extraV6Clients[src.truncatedIP] = struct{}{}
+		}
+	}
+
+	// Parse and validate domain name
+	domainName, err := getDomainName(domainStr, DefaultDNSDomainNameLabels)
+	if err != nil {
+		return fmt.Errorf("invalid domain name: %w", err)
 	}
 
 	if domainName == "." {
-		// Just count root domain queries
-		dataset.AllQueriesCount += queryCount
-		return
+		// Don't include root domain queries in the per-domain stats
+		return nil
+	}
+
+	// Record extra information only if verbose mode is enabled, to preserve memory
+	if verbose {
+		// Track all domains before truncation
+		dataset.extraAllDomains[domainName] = struct{}{}
 	}
 
 	// Fetch (or initialise) domainHll for this domain
@@ -169,27 +194,20 @@ func (dataset *MagnitudeDataset) updateStats(domainName DomainName, src IPAddres
 
 	// Record extra information only if verbose mode is enabled, to preserve memory
 	if verbose {
-		// Track all domains before truncation
-		dataset.extraAllDomains[domainName] = struct{}{}
-
 		// Add the source IP to the set of unique source IPs
-		dataset.extraAllClients[src.truncatedIP] = struct{}{}
 		domain.extraAllClients[src.truncatedIP] = struct{}{}
-		if src.ipAddress.Is6() {
-			dataset.extraV6Clients[src.truncatedIP] = struct{}{}
-		}
 	}
 
-	// Increase queriesCount
+	// Count queries for this domain
 	domain.QueriesCount += queryCount
-	dataset.AllQueriesCount += queryCount
 
-	// count IP in the two HyperLogLogs
+	// Add source IP top the domain specific HyperLogLog
 	domain.Hll.AddRaw(src.hash)
-	dataset.AllClientsHll.AddRaw(src.hash)
 
 	// Save updated domainHll back to the map
 	dataset.Domains[domainName] = domain
+
+	return nil
 }
 
 // update the clientsCount for each domain and the global clientsCount after all queries have been processed.

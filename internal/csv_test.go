@@ -294,7 +294,7 @@ func TestLoadCSVFromReader_MixedValidInvalidRecords(t *testing.T) {
 	collector.finalise()
 
 	validateDataset(t, collector.Result, DatasetExpected{
-		queriesCount:    5,
+		queriesCount:    7,
 		domainCount:     1,
 		expectedDomains: []string{"com"},
 		invalidDomains:  1,

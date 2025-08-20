@@ -112,18 +112,11 @@ func TestGetDomainName(t *testing.T) {
 			errorMsg:    "invalid domain name: c does not match required pattern",
 		},
 		{
-			name:        "TLD too long",
-			input:       "example." + strings.Repeat("a", 64),
+			name:        "TLD starting with digit",
+			input:       "example.1com",
 			numLabels:   1,
 			expectError: true,
-			errorMsg:    "does not match required pattern",
-		},
-		{
-			name:        "TLD with numbers not xn--",
-			input:       "example.com1",
-			numLabels:   1,
-			expectError: true,
-			errorMsg:    "invalid domain name: com1 does not match required pattern",
+			errorMsg:    "invalid domain name: 1com does not match required pattern",
 		},
 		{
 			name:        "invalid xn-- format",
@@ -138,13 +131,6 @@ func TestGetDomainName(t *testing.T) {
 			numLabels:   1,
 			expectError: true,
 			errorMsg:    "invalid domain name: xn--test@ does not match required pattern",
-		},
-		{
-			name:        "xn-- too long",
-			input:       "example.xn--" + strings.Repeat("a", 60),
-			numLabels:   1,
-			expectError: true,
-			errorMsg:    "does not match required pattern",
 		},
 	}
 

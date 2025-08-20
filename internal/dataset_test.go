@@ -249,10 +249,13 @@ func TestMagnitudeDataset_UpdateStats_ZeroQueryCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newIPAddressFromString failed: %v", err)
 	}
-	testDomain := DomainName("org")
+	testDomainStr := "org"
 
 	// Call updateStats with zero query count - should result in no change
-	dataset.updateStats(testDomain, testIP, 0, true)
+	err = dataset.updateStats(testDomainStr, testIP, 0, true)
+	if err != nil {
+		t.Fatalf("updateStats failed: %v", err)
+	}
 
 	// Verify no change
 	if dataset.AllQueriesCount != 0 {
@@ -264,14 +267,17 @@ func TestMagnitudeDataset_UpdateStats_ZeroQueryCount(t *testing.T) {
 	}
 
 	// Now test with non-zero query count to ensure updateStats works normally
-	dataset.updateStats(testDomain, testIP, 1999, true)
+	err = dataset.updateStats(testDomainStr, testIP, 1999, true)
+	if err != nil {
+		t.Fatalf("updateStats failed: %v", err)
+	}
 
 	if dataset.AllQueriesCount != 1999 {
 		t.Errorf("Expected AllQueriesCount to be 1999, got %d", dataset.AllQueriesCount)
 	}
 
-	if _, exists := dataset.Domains[testDomain]; !exists {
-		t.Errorf("Expected domain %s to be added with non-zero query count", testDomain)
+	if _, exists := dataset.Domains[DomainName(testDomainStr)]; !exists {
+		t.Errorf("Expected domain %s to be added with non-zero query count", testDomainStr)
 	}
 }
 

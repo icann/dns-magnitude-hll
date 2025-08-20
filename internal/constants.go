@@ -2,6 +2,8 @@
 
 package internal
 
+import "regexp"
+
 // Default number of top domains to collect/require
 const DefaultDomainCount = 2500
 
@@ -16,3 +18,6 @@ const (
 	DefaultIPv4MaskLength = 24
 	DefaultIPv6MaskLength = 48
 )
+
+// regex for domain name validation. Pre-compiled for performance.
+var DomainNameRegex = regexp.MustCompile("^[a-z][a-z0-9-]*[a-z0-9]$")

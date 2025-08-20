@@ -40,13 +40,11 @@ func NewCollector(topCount int, chunkSize uint, verbose bool, date *time.Time, t
 }
 
 func (c *Collector) ProcessRecord(domainStr string, src IPAddress, queryCount uint64) error {
-	domain, err := getDomainName(domainStr, DefaultDNSDomainNameLabels)
+	err := c.current.updateStats(domainStr, src, queryCount, c.verbose)
 	if err != nil {
 		c.invalidDomainCount++
 		return nil // Invalid domain is not a fatal error
 	}
-
-	c.current.updateStats(domain, src, queryCount, c.verbose)
 
 	c.recordCount++
 	if c.chunkSize != 0 && c.recordCount%c.chunkSize == 0 {

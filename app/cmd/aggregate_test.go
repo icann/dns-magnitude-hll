@@ -66,7 +66,7 @@ func TestAggregateCmd_Integration(t *testing.T) {
 		regexp.MustCompile(`Date\s+:\s+2000-01-01`),
 		regexp.MustCompile(`Total queries\s+:\s+300`),
 		regexp.MustCompile(`Total domains\s+:\s+7`),
-		regexp.MustCompile(`Total unique source IPs\s+:\s+81 \(estimated\)`),
+		regexp.MustCompile(`Total unique source IPs\s+:\s+92 \(estimated\)`),
 		regexp.MustCompile(`Timing statistics`),
 		regexp.MustCompile(`Total execution time`),
 	}

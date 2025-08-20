@@ -132,8 +132,18 @@ func TestCollectorPcapLoading(t *testing.T) {
 		invalidRecords:  0,
 	}, collector)
 
-	if dataset.AllClientsCount != 58 {
-		t.Errorf("Expected some clients from PCAP file, got %d", dataset.AllClientsCount)
+	// Validate cardinality (estimated unique clients)
+	if dataset.AllClientsCount != 70 {
+		t.Errorf("Expected 70 clients from PCAP file, got %d", dataset.AllClientsCount)
+	}
+
+	// Validate exact number of clients
+	if len(dataset.extraAllClients) != 69 {
+		t.Errorf("Expected 69 unique clients, got %d", len(dataset.extraAllClients))
+	}
+
+	if len(dataset.extraV6Clients) != 1 {
+		t.Errorf("Expected 1 unique v6 client, got %d", len(dataset.extraV6Clients))
 	}
 
 	// Verify date was set from PCAP packet timestamps
@@ -309,7 +319,7 @@ func TestCollectorGzippedCSV(t *testing.T) {
 	dataset := collector.Result
 
 	validateDataset(t, dataset, DatasetExpected{
-		queriesCount:    10,
+		queriesCount:    11, // 5 + 3 + 2 + 1, count all queries - even invalid ones
 		domainCount:     3,
 		expectedDomains: []string{"com", "org", "net"},
 		invalidDomains:  1,
