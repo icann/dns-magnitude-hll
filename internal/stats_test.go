@@ -173,7 +173,7 @@ func TestOutputCollectorStats(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 	timing.Finish()
 
 	validateDataset(t, collector.Result, DatasetExpected{
@@ -265,7 +265,7 @@ func TestOutputCollectorStats_WriteErrors(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 	timing.Finish()
 
 	// First, determine the full output length with a normal buffer

@@ -60,7 +60,7 @@ func TestLoadPcap_TestData(t *testing.T) {
 			}
 
 			// Finalize the collector to get final results
-			collector.finalise()
+			collector.Finalise()
 			dataset := collector.Result
 
 			validateDataset(t, dataset, DatasetExpected{

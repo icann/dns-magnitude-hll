@@ -223,7 +223,7 @@ func TestInteropCollectorIntegration(t *testing.T) {
 		t.Fatalf("Failed to process IPv6 record: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 	dataset := collector.Result
 
 	if dataset.AllQueriesCount != 2 {

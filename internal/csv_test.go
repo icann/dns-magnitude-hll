@@ -30,7 +30,7 @@ func TestLoadCSVFromReader(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 	timing.Finish() // for coverage
 
 	dataset := collector.Result
@@ -73,7 +73,7 @@ func TestLoadCSVFromReader_VerboseMode(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 	dataset := collector.Result
 
 	if dataset.Date.Time != testDate {
@@ -247,7 +247,7 @@ func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 	dataset := collector.Result
 
 	// Verify date was set correctly
@@ -291,7 +291,7 @@ func TestLoadCSVFromReader_MixedValidInvalidRecords(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 
 	validateDataset(t, collector.Result, DatasetExpected{
 		queriesCount:    7,

@@ -27,7 +27,7 @@ func TestGenerateReport_HardcodedComparison(t *testing.T) {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
 
-	collector.finalise()
+	collector.Finalise()
 	dataset := collector.Result
 
 	actual := GenerateReport(dataset, "test-source", "authoritative")
