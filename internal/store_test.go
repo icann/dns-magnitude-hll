@@ -2,7 +2,6 @@ package internal
 
 import (
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,19 +18,9 @@ func TestWriteAndLoadDNSMagFile_WriteLoadCycle(t *testing.T) {
 192.168.1.20,example.org,3
 10.0.0.5,com.,2`
 
-	reader := strings.NewReader(csvData)
-	testDate := time.Date(1999, 8, 21, 0, 0, 0, 0, time.UTC)
-
-	timing := NewTimingStats()
-	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
-	err := LoadCSVFromReader(reader, collector)
+	collector, err := loadDatasetFromCSV(csvData, "1999-08-21", false)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed: %v", err)
-	}
-
-	err = collector.finalise()
-	if err != nil {
-		t.Fatalf("Finalise failed: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
 	}
 	originalDataset := collector.Result
 

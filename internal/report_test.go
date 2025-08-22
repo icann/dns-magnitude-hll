@@ -2,9 +2,7 @@ package internal
 
 import (
 	"reflect"
-	"strings"
 	"testing"
-	"time"
 )
 
 func init() {
@@ -12,22 +10,14 @@ func init() {
 }
 
 func TestGenerateReport_HardcodedComparison(t *testing.T) {
-	// Create test dataset with known values
 	csvData := `192.168.1.10,example.com,5
 192.168.2.20,example.org,3
 10.0.0.5,example.com,2`
 
-	reader := strings.NewReader(csvData)
-	testDate := time.Date(2007, 9, 9, 0, 0, 0, 0, time.UTC)
-
-	timing := NewTimingStats()
-	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
-	err := LoadCSVFromReader(reader, collector)
+	collector, err := loadDatasetFromCSV(csvData, "2007-09-09", true)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
 	}
-
-	collector.Finalise()
 	dataset := collector.Result
 
 	actual := GenerateReport(dataset, "test-source", "authoritative")
