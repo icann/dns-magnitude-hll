@@ -4,7 +4,6 @@ package cmd
 
 import (
 	"dnsmag/internal"
-	"fmt"
 
 	"github.com/spf13/cobra"
 )
@@ -40,10 +39,9 @@ func newViewCmd() *cobra.Command {
 			}
 
 			// Format and print the domain statistics
-			if err := internal.OutputDatasetStats(stdout, stats, verbose); err != nil {
-				fmt.Fprintf(stderr, "%v\n", err)
+			if err := internal.OutputDatasetStats(stdout, seq.Result, verbose); err != nil {
 				cmd.SilenceUsage = true
-				return fmt.Errorf("failed to output dataset stats: %w", err)
+				return err
 			}
 
 			return nil

@@ -60,7 +60,6 @@ func newReportCmd() *cobra.Command {
 
 			jsonData, err := json.MarshalIndent(report, "", "  ")
 			if err != nil {
-				fmt.Fprintf(stderr, "Failed to generate JSON report: %v\n", err)
 				cmd.SilenceUsage = true
 				return fmt.Errorf("failed to generate JSON report: %w", err)
 			}
@@ -69,7 +68,6 @@ func newReportCmd() *cobra.Command {
 			if output != "" {
 				err = os.WriteFile(output, jsonData, 0o644) // #nosec G306
 				if err != nil {
-					fmt.Fprintf(stderr, "Failed to write report to %s: %v\n", output, err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to write report to %s: %w", output, err)
 				}

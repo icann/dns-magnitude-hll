@@ -19,7 +19,6 @@ Save them to a DNSMAG file (CBOR format).`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			stdout := cmd.OutOrStdout()
-			stderr := cmd.ErrOrStderr()
 
 			timing := internal.NewTimingStats()
 
@@ -45,7 +44,6 @@ Save them to a DNSMAG file (CBOR format).`,
 
 			// Validate filetype
 			if filetype != "pcap" && filetype != "csv" {
-				fmt.Fprintf(stderr, "Invalid filetype '%s', must be 'pcap' or 'csv'\n", filetype)
 				cmd.SilenceUsage = true
 				return fmt.Errorf("invalid filetype '%s', must be 'pcap' or 'csv'", filetype)
 			}
@@ -55,7 +53,6 @@ Save them to a DNSMAG file (CBOR format).`,
 			if dateStr != "" {
 				parsedDate, err := time.Parse(time.DateOnly, dateStr)
 				if err != nil {
-					fmt.Fprintf(stderr, "Invalid date format '%s', expected YYYY-MM-DD: %v\n", dateStr, err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("invalid date format '%s', expected YYYY-MM-DD: %w", dateStr, err)
 				}
@@ -64,7 +61,6 @@ Save them to a DNSMAG file (CBOR format).`,
 
 			// Quiet and verbose flags are mutually exclusive
 			if quiet && verbose {
-				fmt.Fprintln(stderr, "Can't be both --quiet and --verbose at the same time")
 				cmd.SilenceUsage = true
 				return fmt.Errorf("conflicting flags: cannot use both --quiet and --verbose")
 			}
@@ -79,7 +75,6 @@ Save them to a DNSMAG file (CBOR format).`,
 			collector := internal.NewCollector(topCount, chunkSize, verbose, date, timing)
 			err := collector.ProcessFiles(args, filetype)
 			if err != nil {
-				fmt.Fprintf(stderr, "%v\n", err)
 				cmd.SilenceUsage = true
 				return fmt.Errorf("failed to process files: %w", err)
 			}
@@ -93,7 +88,6 @@ Save them to a DNSMAG file (CBOR format).`,
 			if output != "" {
 				_, err := internal.WriteDNSMagFile(collector.Result, output)
 				if err != nil {
-					fmt.Fprintf(stderr, "Failed to write DNSMAG to %s: %v\n", output, err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to write DNSMAG to %s: %w", output, err)
 				}
@@ -107,7 +101,6 @@ Save them to a DNSMAG file (CBOR format).`,
 			if !quiet {
 				// Print statistics and timing
 				if err := internal.OutputCollectorStats(stdout, collector, verbose); err != nil {
-					fmt.Fprintf(stderr, "%v\n", err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to output collector stats: %w", err)
 				}

@@ -55,9 +55,8 @@ func newAggregateCmd() *cobra.Command {
 			// Load all provided DNSMAG files
 			err := loadDatasets(seq, args, stdin, stdout, stderr, verbose)
 			if err != nil {
-				fmt.Fprintf(stderr, "Failed to aggregate datasets: %v\n", err)
 				cmd.SilenceUsage = true
-				return fmt.Errorf("failed to aggregate datasets: %w", err)
+				return err
 			}
 
 			if seq.Count > 0 && verbose {
@@ -68,7 +67,6 @@ func newAggregateCmd() *cobra.Command {
 			if output != "" {
 				outFilename, err := internal.WriteDNSMagFile(seq.Result, output)
 				if err != nil {
-					fmt.Fprintf(stderr, "Failed to write aggregated dataset to %s: %v\n", output, err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to write aggregated dataset to %s: %w", output, err)
 				}
@@ -92,7 +90,6 @@ func newAggregateCmd() *cobra.Command {
 
 			if !quiet {
 				// Format and print the aggregated domain statistics
-					fmt.Fprintf(stderr, "%v\n", err)
 				if err := internal.OutputDatasetStats(stdout, seq.Result, verbose); err != nil {
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to output dataset stats: %w", err)
@@ -101,7 +98,6 @@ func newAggregateCmd() *cobra.Command {
 				fmt.Fprintln(stdout)
 
 				if err := internal.OutputTimingStats(stdout, timing); err != nil {
-					fmt.Fprintf(stderr, "Failed to format timing statistics: %v\n", err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to format timing statistics: %w", err)
 				}
