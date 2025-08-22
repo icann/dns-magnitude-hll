@@ -28,17 +28,17 @@ func newReportCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			stdin := cmd.InOrStdin()
 			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
 			filename := args[0]
 
-			// Load the DNSMAG file
-			stats, err := internal.LoadDNSMagFile(filename)
-			if err != nil {
-				fmt.Fprintf(stderr, "Failed to load DNSMAG file %s: %v\n", filename, err)
+			seq := internal.NewDatasetSequence(0, nil)
+
+			if err := loadDatasets(seq, []string{filename}, stdin, stdout, stderr, false); err != nil {
 				cmd.SilenceUsage = true
-				return fmt.Errorf("failed to load DNSMAG file %s: %w", filename, err)
+				return err
 			}
 
 			var (
@@ -56,7 +56,7 @@ func newReportCmd() *cobra.Command {
 			})
 
 			// Generate the report in a data structure conforming to the schema (report-schema.yaml)
-			report := internal.GenerateReport(stats, source, sourceType)
+			report := internal.GenerateReport(seq.Result, source, sourceType)
 
 			jsonData, err := json.MarshalIndent(report, "", "  ")
 			if err != nil {

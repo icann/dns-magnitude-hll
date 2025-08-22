@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -43,13 +44,14 @@ func TestWriteAndLoadDNSMagFile_WriteLoadCycle(t *testing.T) {
 	}
 
 	// Test loading
-	loadedDataset, err := LoadDNSMagFile(tmpFile.Name())
+	seq := NewDatasetSequence(0, nil)
+	err = seq.LoadDNSMagFile(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("LoadDNSMagFile failed: %v", err)
 	}
 
 	// Validate loaded dataset
-	validateDataset(t, loadedDataset, DatasetExpected{
+	validateDataset(t, seq.Result, DatasetExpected{
 		queriesCount:    10,
 		domainCount:     2,
 		expectedDomains: []string{"com", "org"},
@@ -57,7 +59,7 @@ func TestWriteAndLoadDNSMagFile_WriteLoadCycle(t *testing.T) {
 		invalidRecords:  0,
 	}, nil)
 
-	validateDatasetDomains(t, loadedDataset, DatasetDomainsExpected{
+	validateDatasetDomains(t, seq.Result, DatasetDomainsExpected{
 		expectedDomains: map[DomainName]uint64{
 			"com": 7,
 			"org": 3,
@@ -65,13 +67,14 @@ func TestWriteAndLoadDNSMagFile_WriteLoadCycle(t *testing.T) {
 	})
 
 	// Verify date was preserved
-	if !loadedDataset.Date.Equal(originalDataset.Date.Time) {
-		t.Errorf("Date mismatch: expected %v, got %v", originalDataset.Date.Time, loadedDataset.Date.Time)
+	if !seq.Result.Date.Equal(originalDataset.Date.Time) {
+		t.Errorf("Date mismatch: expected %v, got %v", originalDataset.Date.Time, seq.Result.Date.Time)
 	}
 
-	// Verify source filename was set
-	if loadedDataset.extraSourceFilename != tmpFile.Name() {
-		t.Errorf("Expected source filename %s, got %s", tmpFile.Name(), loadedDataset.extraSourceFilename)
+	// Verify source filename was set (and a dataset sequence number was added)
+	expectedFilename := fmt.Sprintf("%s#1", tmpFile.Name())
+	if seq.Result.extraSourceFilename != expectedFilename {
+		t.Errorf("Expected source filename %s, got %s", expectedFilename, seq.Result.extraSourceFilename)
 	}
 }
 
@@ -85,7 +88,8 @@ func TestWriteDNSMagFile_CreateError(t *testing.T) {
 }
 
 func TestLoadDNSMagFile_FileNotFound(t *testing.T) {
-	_, err := LoadDNSMagFile("non-existent.dnsmag")
+	seq := NewDatasetSequence(0, nil)
+	err := seq.LoadDNSMagFile("non-existent.dnsmag")
 	if err == nil {
 		t.Error("Expected error when loading non-existent file, got nil")
 	}
@@ -105,7 +109,8 @@ func TestLoadDNSMagFile_InvalidFormat(t *testing.T) {
 	}
 	tmpFile.Close()
 
-	_, err = LoadDNSMagFile(tmpFile.Name())
+	seq := NewDatasetSequence(0, nil)
+	err = seq.LoadDNSMagFile(tmpFile.Name())
 	if err == nil {
 		t.Error("Expected error when loading invalid CBOR file, got nil")
 	}

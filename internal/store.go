@@ -4,6 +4,7 @@ package internal
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -70,24 +71,110 @@ func WriteDNSMagFile(stats MagnitudeDataset, filename string) (string, error) {
 	return filename, err
 }
 
+// This structure is used when loading a sequence of datasets to avoid having them all in memory.
+// Every loaded dataset is aggregated into the Result.
+type DatasetSequence struct {
+	numDomains int
+	Count      int
+	Result     MagnitudeDataset
+}
+
+func NewDatasetSequence(numDomains int, date *time.Time) *DatasetSequence {
+	return &DatasetSequence{
+		numDomains: numDomains,
+		Count:      0,
+		Result:     newDataset(date),
+	}
+}
+
 // LoadDNSMagFile loads a magnitudeDataset from a CBOR file.
-func LoadDNSMagFile(filename string) (MagnitudeDataset, error) {
-	var stats MagnitudeDataset
-
-	stats.extraSourceFilename = filename
-
+func (seq *DatasetSequence) LoadDNSMagFile(filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
-		return stats, err
+		return err
 	}
 	defer func() { _ = file.Close() }()
 
-	dec := cbor.NewDecoder(file)
-	err = dec.Decode(&stats)
+	return seq.LoadDNSMagSequenceFromReader(file, fmt.Sprintf("%s#%%d", filename))
+}
 
-	if err == nil {
-		stats.finaliseStats()
+// LoadDNSMagSequenceFromReader loads all MagnitudeDatasets from a CBOR sequence reader.
+// Sets extraSourceFilename to the filename plus a sequence number suffix for each dataset.
+func (seq *DatasetSequence) LoadDNSMagSequenceFromReader(reader io.Reader, filenameFmt string) error {
+	var buffer []byte
+	readBuffer := make([]byte, 1024*1024) // 1MB read buffer to start with
+
+	seqNum := 1
+	for {
+		// Try to read more data
+		n, readErr := reader.Read(readBuffer)
+		if n > 0 {
+			buffer = append(buffer, readBuffer[:n]...)
+		}
+
+		// Try to unmarshal a dataset from the read buffer
+		for len(buffer) > 0 {
+			var this MagnitudeDataset
+
+			remaining, err := cbor.UnmarshalFirst(buffer, &this)
+			if err != nil {
+				// If we can't unmarshal and have reached EOF, we fail
+				if readErr == io.EOF {
+					return fmt.Errorf("failed to unmarshal CBOR: %w", err)
+				}
+				// If we can't unmarshal but haven't hit EOF, we should read more data
+				break
+			}
+
+			this.finaliseStats()
+			this.extraSourceFilename = fmt.Sprintf(filenameFmt, seqNum)
+			seqNum++
+
+			if err := seq.addDataset(this); err != nil {
+				return err
+			}
+
+			buffer = remaining
+		}
+
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return fmt.Errorf("failed to read data: %w", readErr)
+		}
 	}
 
-	return stats, err
+	// Check if there's any remaining data that couldn't be parsed
+	if len(buffer) > 0 {
+		return fmt.Errorf("remaining %d bytes in buffer could not be parsed as CBOR", len(buffer))
+	}
+
+	return nil
+}
+
+func (seq *DatasetSequence) addDataset(dataset MagnitudeDataset) error {
+	if seq.Count == 0 {
+		seq.Result = dataset
+		seq.Count = 1
+		return nil
+	}
+
+	aggregated, err := AggregateDatasets([]MagnitudeDataset{seq.Result, dataset})
+	if err != nil {
+		return fmt.Errorf("failed to aggregate datasets: %w", err)
+	}
+
+	// Truncate the stats to the top N domains
+	aggregated.Truncate(seq.numDomains)
+
+	seq.Result = aggregated
+	seq.Count++
+
+	return nil
+}
+
+// MarshalDatasetToCBOR marshals a dataset to CBOR bytes for testing
+func MarshalDatasetToCBOR(dataset MagnitudeDataset) ([]byte, error) {
+	return cbor.Marshal(dataset)
 }

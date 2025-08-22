@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"dnsmag/internal"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
+	"time"
 )
 
 // executeCollectAndVerify is a helper function to execute a collect command and verify the query count
@@ -35,4 +38,37 @@ func executeCollectAndVerify(t *testing.T, args []string, expectedQueries int, d
 	t.Logf("%s collect output shows %s queries", description, matches[1])
 
 	return collectBuf.String()
+}
+
+// loadDatasetFromCSV creates a dataset from CSV data string for testing
+// Returns the Collector for access to verbose stats and error counts.
+func loadDatasetFromCSV(csvData string, dateStr string, verbose bool) (*internal.Collector, error) {
+	var date *time.Time
+	if dateStr != "" {
+		parsedDate, err := time.Parse(time.DateOnly, dateStr)
+		if err != nil {
+			return nil, err
+		}
+		date = &parsedDate
+	}
+
+	timing := internal.NewTimingStats()
+	collector := internal.NewCollector(internal.DefaultDomainCount, 0, verbose, date, timing)
+	reader := strings.NewReader(csvData)
+
+	timing.StartParsing()
+
+	err := internal.LoadCSVFromReader(reader, collector)
+	if err != nil {
+		return nil, err
+	}
+
+	err = collector.Finalise()
+	if err != nil {
+		return nil, err
+	}
+
+	timing.Finish()
+
+	return collector, nil
 }

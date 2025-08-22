@@ -1,7 +1,11 @@
+// Author: Fredrik Thulin <fredrik@ispik.se>
+
 package cmd
 
 import (
+	"dnsmag/internal"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -27,4 +31,31 @@ func parseFlags(cmd *cobra.Command, flags map[string]any) {
 			os.Exit(1)
 		}
 	}
+}
+
+// loadDatasets loads DNSMAG datasets from CBOR sequences in files or if the filename "-" is used, from STDIN.
+func loadDatasets(seq *internal.DatasetSequence, args []string, stdin io.Reader, stdout, stderr io.Writer, verbose bool) error {
+	for _, filename := range args {
+		var err error
+		if filename == "-" {
+			if verbose {
+				fmt.Fprintf(stdout, "Loading datasets from STDIN\n")
+			}
+			err = seq.LoadDNSMagSequenceFromReader(stdin, "<stdin#%d>")
+			if err != nil {
+				return fmt.Errorf("failed to load datasets from STDIN: %w", err)
+			}
+			continue
+		}
+
+		if verbose {
+			fmt.Fprintf(stdout, "Loading datasets from %s\n", filename)
+		}
+
+		err = seq.LoadDNSMagFile(filename)
+		if err != nil {
+			return fmt.Errorf("failed to load DNSMAG file %s: %w", filename, err)
+		}
+	}
+	return nil
 }
