@@ -1,8 +1,10 @@
 package internal
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -221,4 +223,185 @@ func TestHLLWrapper_HLLWrapper_UnmarshalCBOR_WrongDataType(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error when unmarshaling string as HLL, got nil")
 	}
+}
+
+func TestWriteAndLoadDNSMagSequence_MultiDataset(t *testing.T) {
+	// Create two mock datasets using loadDatasetFromCSV
+	csv1 := `192.168.1.1,org,7
+192.168.1.2,org`
+	csv2 := `10.0.0.1,com,15
+10.0.0.2,com`
+
+	collector1, err := loadDatasetFromCSV(csv1, "2007-09-09", false)
+	if err != nil {
+		t.Fatalf("loadDatasetFromCSV failed for dataset1: %v", err)
+	}
+	dataset1 := collector1.Result
+
+	collector2, err := loadDatasetFromCSV(csv2, "2007-09-09", false)
+	if err != nil {
+		t.Fatalf("loadDatasetFromCSV failed for dataset2: %v", err)
+	}
+	dataset2 := collector2.Result
+
+	// Write both datasets to a single temporary file as a CBOR sequence
+	tmpFile, err := os.CreateTemp("", "test_seq_*.dnsmag")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	enc := cbor.NewEncoder(tmpFile)
+	if err := enc.Encode(dataset1); err != nil {
+		t.Fatalf("Failed to encode dataset1: %v", err)
+	}
+	if err := enc.Encode(dataset2); err != nil {
+		t.Fatalf("Failed to encode dataset2: %v", err)
+	}
+	tmpFile.Close()
+
+	// Load the two datasets from the single file
+	seq := NewDatasetSequence(100, &dataset1.Date.Time)
+	err = seq.LoadDNSMagSequenceFromReaderFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("LoadDNSMagSequenceFromReaderFile failed: %v", err)
+	}
+
+	if seq.Count != 2 {
+		t.Errorf("Expected 2 datasets loaded, got %d", seq.Count)
+	}
+
+	// The two datasets should be aggregated when loaded as a sequence
+	validateDataset(t, seq.Result, DatasetExpected{
+		queriesCount:    dataset1.AllQueriesCount + dataset2.AllQueriesCount,
+		domainCount:     2,
+		expectedDomains: []string{"org", "com"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, nil)
+
+	validateDatasetDomains(t, seq.Result, DatasetDomainsExpected{
+		expectedDomains: map[DomainName]uint64{
+			"org": 8,  // 7 + 1
+			"com": 16, // 15 + 1
+		},
+	})
+}
+
+// Helper to load a CBOR sequence file using DatasetSequence
+func (seq *DatasetSequence) LoadDNSMagSequenceFromReaderFile(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return seq.LoadDNSMagSequenceFromReader(file, fmt.Sprintf("%s#%%d", filename))
+}
+
+func TestLoadDNSMagSequenceFromReader_ExtraBytes(t *testing.T) {
+	// Create a valid dataset
+	csv := `192.168.1.1,org,7`
+	collector, err := loadDatasetFromCSV(csv, "2007-09-09", false)
+	if err != nil {
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
+	}
+	dataset := collector.Result
+
+	// Marshal to CBOR
+	cborData, err := MarshalDatasetToCBOR(dataset)
+	if err != nil {
+		t.Fatalf("MarshalDatasetToCBOR failed: %v", err)
+	}
+
+	// Add extra bytes after the valid CBOR object
+	extra := []byte("EXTRA BYTES")
+	input := append(cborData, extra...)
+
+	seq := NewDatasetSequence(100, &dataset.Date.Time)
+	err = seq.LoadDNSMagSequenceFromReader(
+		bytes.NewReader(input),
+		"testfile#%d",
+	)
+	if err == nil {
+		t.Errorf("Expected error due to extra bytes, got nil")
+	} else if !strings.Contains(err.Error(), "cannot unmarshal") {
+		t.Errorf("Expected error about unmarshaling bytes, got: %v", err)
+	}
+}
+
+func TestLoadDNSMagSequenceFromReader_IncompleteCBOR(t *testing.T) {
+	// Create incomplete CBOR data (truncated)
+	csv := `192.168.1.1,org,7`
+	collector, err := loadDatasetFromCSV(csv, "2009-12-21", false)
+	if err != nil {
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
+	}
+	dataset := collector.Result
+
+	cborData, err := MarshalDatasetToCBOR(dataset)
+	if err != nil {
+		t.Fatalf("MarshalDatasetToCBOR failed: %v", err)
+	}
+
+	// Truncate the CBOR data to simulate incomplete input
+	truncated := cborData[:len(cborData)-1]
+
+	seq := NewDatasetSequence(100, &dataset.Date.Time)
+	err = seq.LoadDNSMagSequenceFromReader(
+		bytes.NewReader(truncated),
+		"testfile#%d",
+	)
+	if err == nil {
+		t.Errorf("Expected error due to incomplete CBOR, got nil")
+	} else if !strings.Contains(err.Error(), "failed to unmarshal CBOR") {
+		t.Errorf("Expected error about failed to unmarshal CBOR, got: %v", err)
+	}
+}
+
+func TestWriteDNSMagFile_WriteToStdout(t *testing.T) {
+	// Load test1.pcap.gz file using a Collector
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
+	err := collector.ProcessFiles([]string{"../testdata/test1.pcap.gz"}, "pcap")
+	if err != nil {
+		t.Fatalf("ProcessFiles failed: %v", err)
+	}
+	dataset := collector.Result
+
+	// Write to a buffer simulating stdout
+	var buf bytes.Buffer
+	filename, err := WriteDNSMagFile(dataset, "-", &buf)
+	if err != nil {
+		t.Fatalf("WriteDNSMagFile to stdout failed: %v", err)
+	}
+	if filename != "STDOUT" {
+		t.Errorf("Expected filename to be STDOUT, got %s", filename)
+	}
+
+	// Try to decode the written CBOR from the buffer to verify it's valid
+	var loaded MagnitudeDataset
+	dec := cbor.NewDecoder(&buf)
+	err = dec.Decode(&loaded)
+	if err != nil {
+		t.Fatalf("Failed to decode CBOR from buffer: %v", err)
+	}
+
+	// Validate loaded dataset
+	validateDataset(t, loaded, DatasetExpected{
+		queriesCount:    100,
+		domainCount:     4,
+		expectedDomains: []string{"com", "net", "org", "arpa"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, nil)
+
+	validateDatasetDomains(t, loaded, DatasetDomainsExpected{
+		expectedDomains: map[DomainName]uint64{
+			"com":  17,
+			"net":  20,
+			"org":  24,
+			"arpa": 16,
+		},
+	})
 }
