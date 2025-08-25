@@ -59,15 +59,29 @@ func (tw *TimeWrapper) UnmarshalCBOR(data []byte) error {
 }
 
 // WriteDNSMagFile writes the magnitudeDataset to a file in CBOR format.
-func WriteDNSMagFile(stats MagnitudeDataset, filename string) (string, error) {
-	file, err := os.Create(filename)
-	if err != nil {
-		return "", err
+// If filename is "-", writes to the provided stdout writer and returns "STDOUT".
+func WriteDNSMagFile(stats MagnitudeDataset, filename string, stdout io.Writer) (string, error) {
+	var file io.Writer
+	var closeFunc func() error
+
+	if filename == "-" {
+		file = stdout
+		closeFunc = func() error { return nil }
+	} else {
+		f, err := os.Create(filename)
+		if err != nil {
+			return "", err
+		}
+		file = f
+		closeFunc = f.Close
 	}
-	defer func() { _ = file.Close() }()
+	defer func() { _ = closeFunc() }()
 
 	enc := cbor.NewEncoder(file)
-	err = enc.Encode(stats)
+	err := enc.Encode(stats)
+	if filename == "-" {
+		return "STDOUT", err
+	}
 	return filename, err
 }
 

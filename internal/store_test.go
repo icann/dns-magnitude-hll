@@ -34,7 +34,7 @@ func TestWriteAndLoadDNSMagFile_WriteLoadCycle(t *testing.T) {
 	tmpFile.Close()
 
 	// Test writing
-	filename, err := WriteDNSMagFile(originalDataset, tmpFile.Name())
+	filename, err := WriteDNSMagFile(originalDataset, tmpFile.Name(), nil)
 	if err != nil {
 		t.Fatalf("WriteDNSMagFile failed: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestWriteAndLoadDNSMagFile_WriteLoadCycle(t *testing.T) {
 func TestWriteDNSMagFile_CreateError(t *testing.T) {
 	// Try to write to invalid path
 	dataset := newDataset(nil)
-	_, err := WriteDNSMagFile(dataset, "/invalid/path/file.dnsmag")
+	_, err := WriteDNSMagFile(dataset, "/invalid/path/file.dnsmag", nil)
 	if err == nil {
 		t.Error("Expected error when writing to invalid path, got nil")
 	}

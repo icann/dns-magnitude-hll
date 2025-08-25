@@ -33,13 +33,6 @@ func newReportCmd() *cobra.Command {
 
 			filename := args[0]
 
-			seq := internal.NewDatasetSequence(0, nil)
-
-			if err := loadDatasets(cmd, seq, []string{filename}, false); err != nil {
-				cmd.SilenceUsage = true
-				return err
-			}
-
 			var (
 				source     string
 				sourceType string
@@ -53,6 +46,13 @@ func newReportCmd() *cobra.Command {
 				"output":      &output,
 				"verbose":     &verbose,
 			})
+
+			seq := internal.NewDatasetSequence(0, nil)
+
+			if err := loadDatasets(cmd, seq, []string{filename}, verbose); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
 
 			// Generate the report in a data structure conforming to the schema (report-schema.yaml)
 			report := internal.GenerateReport(seq.Result, source, sourceType)

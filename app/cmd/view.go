@@ -31,7 +31,7 @@ func newViewCmd() *cobra.Command {
 
 			seq := internal.NewDatasetSequence(top, nil)
 
-			if err := loadDatasets(cmd, seq, []string{inputFile}, false); err != nil {
+			if err := loadDatasets(cmd, seq, []string{inputFile}, verbose); err != nil {
 				cmd.SilenceUsage = true
 				return err
 			}

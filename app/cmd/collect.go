@@ -18,6 +18,7 @@ func newCollectCmd() *cobra.Command {
 Save them to a DNSMAG file (CBOR format).`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
 			timing := internal.NewTimingStats()
@@ -86,13 +87,13 @@ Save them to a DNSMAG file (CBOR format).`,
 			// Write stats to DNSMAG file only if output is specified
 			// When no output file is specified, only show stats on stderr
 			if output != "" {
-				_, err := internal.WriteDNSMagFile(collector.Result, output)
+				filename, err := internal.WriteDNSMagFile(collector.Result, output, stdout)
 				if err != nil {
 					cmd.SilenceUsage = true
-					return fmt.Errorf("failed to write DNSMAG to %s: %w", output, err)
+					return fmt.Errorf("failed to write DNSMAG to %s: %w", filename, err)
 				}
 				if !quiet {
-					fmt.Fprintf(stderr, "Saved aggregated statistics to %s\n\n", output)
+					fmt.Fprintf(stderr, "Saved aggregated statistics to %s\n\n", filename)
 				}
 			}
 

@@ -25,6 +25,7 @@ func newAggregateCmd() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			stderr := cmd.ErrOrStderr()
+			stdout := cmd.OutOrStdout()
 
 			timing := internal.NewTimingStats()
 
@@ -63,7 +64,7 @@ func newAggregateCmd() *cobra.Command {
 
 			// Save the aggregated dataset to output file if specified
 			if output != "" {
-				outFilename, err := internal.WriteDNSMagFile(seq.Result, output)
+				outFilename, err := internal.WriteDNSMagFile(seq.Result, output, stdout)
 				if err != nil {
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to write aggregated dataset to %s: %w", output, err)
