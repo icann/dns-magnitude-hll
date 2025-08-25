@@ -1,4 +1,4 @@
-report-schema.json:
+report-schema.json: report-schema.yaml
 	yq  -o json report-schema.yaml > report-schema.json
 
 clean:
