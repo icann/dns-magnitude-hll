@@ -44,18 +44,19 @@ func TestCollect_JustCollect(t *testing.T) {
 			cmd.SetErr(stderr)
 			cmd.Execute()
 
-			t.Log(stdout.String())
+			t.Log(stderr.String())
 
 			for _, this := range tt.expectedOutput {
-				if !this.MatchString(stdout.String()) {
+				if !this.MatchString(stderr.String()) {
 					t.Fatalf(
 						"expected pattern %q not found in output:\n%s",
 						this.String(), stdout.String())
 				}
 			}
 
-			if stderr.Len() > 0 {
-				t.Fatalf("unexpected stderr output:\n%s", stderr.String())
+			// No output to stdout is expected for this test
+			if stdout.Len() > 0 {
+				t.Fatalf("unexpected stdout output:\n%s", stdout.String())
 			}
 		})
 	}

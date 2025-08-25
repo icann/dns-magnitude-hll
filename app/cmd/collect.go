@@ -18,7 +18,7 @@ func newCollectCmd() *cobra.Command {
 Save them to a DNSMAG file (CBOR format).`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stdout := cmd.OutOrStdout()
+			stderr := cmd.ErrOrStderr()
 
 			timing := internal.NewTimingStats()
 
@@ -80,11 +80,11 @@ Save them to a DNSMAG file (CBOR format).`,
 			}
 
 			if verbose {
-				fmt.Fprintln(stdout)
+				fmt.Fprintln(stderr)
 			}
 
 			// Write stats to DNSMAG file only if output is specified
-			// When no output file is specified, only show stats on stdout
+			// When no output file is specified, only show stats on stderr
 			if output != "" {
 				_, err := internal.WriteDNSMagFile(collector.Result, output)
 				if err != nil {
@@ -92,7 +92,7 @@ Save them to a DNSMAG file (CBOR format).`,
 					return fmt.Errorf("failed to write DNSMAG to %s: %w", output, err)
 				}
 				if !quiet {
-					fmt.Fprintf(stdout, "Saved aggregated statistics to %s\n\n", output)
+					fmt.Fprintf(stderr, "Saved aggregated statistics to %s\n\n", output)
 				}
 			}
 
@@ -100,7 +100,7 @@ Save them to a DNSMAG file (CBOR format).`,
 
 			if !quiet {
 				// Print statistics and timing
-				if err := internal.OutputCollectorStats(stdout, collector, verbose); err != nil {
+				if err := internal.OutputCollectorStats(stderr, collector, verbose); err != nil {
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to output collector stats: %w", err)
 				}
@@ -110,7 +110,7 @@ Save them to a DNSMAG file (CBOR format).`,
 		},
 	}
 	collectCmd.Flags().IntP("top", "n", internal.DefaultDomainCount, "Number of domains to collect")
-	collectCmd.Flags().StringP("output", "o", "", "Output file to save the aggregated dataset (optional, only shows stats on stdout if not specified)")
+	collectCmd.Flags().StringP("output", "o", "", "Output file to save the aggregated dataset (optional, only shows stats on stderr if not specified)")
 	collectCmd.Flags().String("filetype", "pcap", "Input file type: 'pcap' or 'csv'")
 	collectCmd.Flags().String("date", "", "Date for CSV data in YYYY-MM-DD format (optional, defaults to data from input files or the current date)")
 	collectCmd.Flags().BoolP("verbose", "v", false, "Verbose output")

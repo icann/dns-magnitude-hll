@@ -15,8 +15,6 @@ func newViewCmd() *cobra.Command {
 		Long:  `View domain statistics from a previously saved DNSMAG file and display them.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stdin := cmd.InOrStdin()
-			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
 			inputFile := args[0]
@@ -33,13 +31,13 @@ func newViewCmd() *cobra.Command {
 
 			seq := internal.NewDatasetSequence(top, nil)
 
-			if err := loadDatasets(seq, []string{inputFile}, stdin, stdout, stderr, false); err != nil {
+			if err := loadDatasets(cmd, seq, []string{inputFile}, false); err != nil {
 				cmd.SilenceUsage = true
 				return err
 			}
 
 			// Format and print the domain statistics
-			if err := internal.OutputDatasetStats(stdout, seq.Result, verbose); err != nil {
+			if err := internal.OutputDatasetStats(stderr, seq.Result, verbose); err != nil {
 				cmd.SilenceUsage = true
 				return err
 			}

@@ -28,7 +28,6 @@ func newReportCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stdin := cmd.InOrStdin()
 			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
@@ -36,7 +35,7 @@ func newReportCmd() *cobra.Command {
 
 			seq := internal.NewDatasetSequence(0, nil)
 
-			if err := loadDatasets(seq, []string{filename}, stdin, stdout, stderr, false); err != nil {
+			if err := loadDatasets(cmd, seq, []string{filename}, false); err != nil {
 				cmd.SilenceUsage = true
 				return err
 			}
@@ -72,7 +71,7 @@ func newReportCmd() *cobra.Command {
 					return fmt.Errorf("failed to write report to %s: %w", output, err)
 				}
 				if verbose {
-					fmt.Fprintf(stdout, "Report written to %s\n", output)
+					fmt.Fprintf(stderr, "Report written to %s\n", output)
 				}
 			} else {
 				fmt.Fprintln(stdout, string(jsonData))

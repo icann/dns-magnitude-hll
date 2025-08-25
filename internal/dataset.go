@@ -41,7 +41,7 @@ type domainData struct {
 	Hll             *HLLWrapper             `cbor:"clients_hll"`   // HLL counter for unique source IPs
 	ClientsCount    uint64                  `cbor:"clients_count"` // Number of clients querying this domain (cardinality of HLL)
 	QueriesCount    uint64                  `cbor:"queries_count"` // Number of queries for this domain (absolute count)
-	extraAllClients map[netip.Addr]struct{} // All clients, only used when printing stats to stdout
+	extraAllClients map[netip.Addr]struct{} // All clients, only used when printing stats
 }
 
 // Used to make a list of domains by count

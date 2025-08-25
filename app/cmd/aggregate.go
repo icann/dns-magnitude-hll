@@ -24,8 +24,6 @@ func newAggregateCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stdin := cmd.InOrStdin()
-			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
 			timing := internal.NewTimingStats()
@@ -53,14 +51,14 @@ func newAggregateCmd() *cobra.Command {
 			seq := internal.NewDatasetSequence(top, nil)
 
 			// Load all provided DNSMAG files
-			err := loadDatasets(seq, args, stdin, stdout, stderr, verbose)
+			err := loadDatasets(cmd, seq, args, verbose)
 			if err != nil {
 				cmd.SilenceUsage = true
 				return err
 			}
 
 			if seq.Count > 0 && verbose {
-				fmt.Fprintln(stdout)
+				fmt.Fprintln(stderr)
 			}
 
 			// Save the aggregated dataset to output file if specified
@@ -71,18 +69,18 @@ func newAggregateCmd() *cobra.Command {
 					return fmt.Errorf("failed to write aggregated dataset to %s: %w", output, err)
 				}
 				if verbose {
-					fmt.Fprintf(stdout, "Aggregated dataset saved to %s\n", outFilename)
+					fmt.Fprintf(stderr, "Aggregated dataset saved to %s\n", outFilename)
 				}
 			}
 
 			// Print statistics
 			if !quiet {
 				if seq.Count == 0 {
-					fmt.Fprintf(stdout, "Statistics for %s:\n", args[0])
+					fmt.Fprintf(stderr, "Statistics for %s:\n", args[0])
 				} else {
-					fmt.Fprintf(stdout, "Aggregated statistics for %d datasets:\n", seq.Count)
+					fmt.Fprintf(stderr, "Aggregated statistics for %d datasets:\n", seq.Count)
 				}
-				fmt.Fprintln(stdout)
+				fmt.Fprintln(stderr)
 			}
 
 			// Finish timing and print statistics
@@ -90,14 +88,14 @@ func newAggregateCmd() *cobra.Command {
 
 			if !quiet {
 				// Format and print the aggregated domain statistics
-				if err := internal.OutputDatasetStats(stdout, seq.Result, verbose); err != nil {
+				if err := internal.OutputDatasetStats(stderr, seq.Result, verbose); err != nil {
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to output dataset stats: %w", err)
 				}
 
-				fmt.Fprintln(stdout)
+				fmt.Fprintln(stderr)
 
-				if err := internal.OutputTimingStats(stdout, timing); err != nil {
+				if err := internal.OutputTimingStats(stderr, timing); err != nil {
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to format timing statistics: %w", err)
 				}
