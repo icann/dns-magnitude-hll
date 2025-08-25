@@ -40,7 +40,7 @@ func GenerateReport(stats MagnitudeDataset, source, sourceType string) Report {
 
 	report := Report{
 		Date:               stats.DateString(),
-		Identifier:	    uuid.New().String(),
+		Identifier:         uuid.New().String(),
 		Source:             source,
 		SourceType:         sourceType,
 		TotalUniqueClients: stats.AllClientsCount,
