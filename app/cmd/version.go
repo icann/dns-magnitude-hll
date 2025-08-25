@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// version set at build time with -ldflags="-X cmd.Version=v0.0.1"
+// version set at build time with -ldflags="-X dnsmag/app/cmd.Version=v0.0.1"
 var Version = "undefined"
 
 func newVersionCmd() *cobra.Command {
