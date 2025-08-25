@@ -14,7 +14,7 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Show version",
 		Long:  `SHow software version.`,
-		RunE: func(cmd *cobra.Command, _args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			stdout := cmd.OutOrStdout()
 
 			fmt.Fprintf(stdout, "dnsmag %s\n", Version)
