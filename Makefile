@@ -7,7 +7,7 @@ build: $(BINARY)
 
 
 $(BINARY): app internal
-	go build -ldflags="-X dnsmag/app/cmd.Version=$(VERSION)" -o dnsmag ./app
+	go build -ldflags="-X dnsmag/app/cmd.Version=$(VERSION)" -o $(BINARY) ./app
 
 test:
 	go test -cover ./internal/ ./app/cmd/
