@@ -64,7 +64,7 @@ func newReportCmd() *cobra.Command {
 			}
 
 			// Write the report to the specified output file or stdout
-			if output != "" {
+			if output != "" && output != "-" {
 				err = os.WriteFile(output, jsonData, 0o644) // #nosec G306
 				if err != nil {
 					cmd.SilenceUsage = true
@@ -75,6 +75,9 @@ func newReportCmd() *cobra.Command {
 				}
 			} else {
 				fmt.Fprintln(stdout, string(jsonData))
+				if verbose {
+					fmt.Fprintf(stderr, "Report written to STDOUT\n")
+				}
 			}
 
 			return nil
