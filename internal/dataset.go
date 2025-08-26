@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/segmentio/go-hll"
 )
 
@@ -25,6 +26,7 @@ type TimeWrapper struct {
 // Main data structure for storing domain statistics. This matches the structure of the CBOR files.
 type MagnitudeDataset struct {
 	Version             uint16                    `cbor:"version"`
+	Identifier          string                    `cbor:"id"`                // Unique identifier of the dataset
 	Date                *TimeWrapper              `cbor:"date"`              // UTC date of collection
 	AllClientsHll       *HLLWrapper               `cbor:"all_clients_hll"`   // HLL for all unique source IPs
 	AllClientsCount     uint64                    `cbor:"all_clients_count"` // Cardinality of GlobalHll
@@ -64,6 +66,7 @@ func InitStats() error {
 func newDataset(date *time.Time) MagnitudeDataset {
 	dataset := MagnitudeDataset{
 		Version:             1,
+		Identifier:          uuid.New().String(),
 		AllClientsHll:       &HLLWrapper{Hll: &hll.Hll{}},
 		Domains:             make(map[DomainName]domainData),
 		AllClientsCount:     0,
