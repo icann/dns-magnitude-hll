@@ -11,17 +11,15 @@ import (
 
 func newAggregateCmd() *cobra.Command {
 	aggregateCmd := &cobra.Command{
-		Use:   "aggregate <dnsmag-file1> <dnsmag-file2> [dnsmag-file3...]",
+		Use:   "aggregate <dnsmag-file1> [dnsmag-file2...]",
 		Short: "Aggregate multiple DNSMAG files into combined statistics",
 		Long:  `Aggregate domain statistics from multiple DNSMAG files into a single combined dataset.`,
-		Args:  cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
 			timing := internal.NewTimingStats()
-
-			var datasets []internal.MagnitudeDataset
 
 			var (
 				top     int
@@ -39,61 +37,43 @@ func newAggregateCmd() *cobra.Command {
 
 			// Quiet and verbose flags are mutually exclusive
 			if quiet && verbose {
-				fmt.Fprintln(stderr, "Can't be both --quiet and --verbose at the same time")
 				cmd.SilenceUsage = true
 				return fmt.Errorf("conflicting flags: cannot use both --quiet and --verbose")
 			}
 
-			// Load all provided CBOR files
-			for _, filename := range args {
-				if verbose {
-					fmt.Fprintf(stdout, "Loading dataset from %s\n", filename)
-				}
-				stats, err := internal.LoadDNSMagFile(filename)
-				if err != nil {
-					fmt.Fprintf(stderr, "Failed to load DNSMAG file %s: %v\n", filename, err)
-					cmd.SilenceUsage = true
-					return fmt.Errorf("failed to load DNSMAG file %s: %w", filename, err)
-				}
-				datasets = append(datasets, stats)
-			}
+			seq := internal.NewDatasetSequence(top, nil)
 
-			if len(datasets) > 0 && verbose {
-				fmt.Fprintln(stdout)
-			}
-
-			// Aggregate the datasets
-			aggregated, err := internal.AggregateDatasets(datasets)
+			// Load all provided DNSMAG files
+			err := loadDatasets(cmd, seq, args, verbose)
 			if err != nil {
-				fmt.Fprintf(stderr, "Failed to aggregate datasets: %v\n", err)
 				cmd.SilenceUsage = true
-				return fmt.Errorf("failed to aggregate datasets: %w", err)
+				return err
 			}
 
-			// Truncate the stats to the top N domains
-			aggregated.Truncate(top)
+			if seq.Count > 0 && verbose {
+				fmt.Fprintln(stderr)
+			}
 
 			// Save the aggregated dataset to output file if specified
 			if output != "" {
-				outFilename, err := internal.WriteDNSMagFile(aggregated, output)
+				outFilename, err := internal.WriteDNSMagFile(seq.Result, output, stdout)
 				if err != nil {
-					fmt.Fprintf(stderr, "Failed to write aggregated dataset to %s: %v\n", output, err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to write aggregated dataset to %s: %w", output, err)
 				}
 				if verbose {
-					fmt.Fprintf(stdout, "Aggregated dataset saved to %s\n", outFilename)
+					fmt.Fprintf(stderr, "Aggregated dataset saved to %s\n", outFilename)
 				}
 			}
 
 			// Print statistics
 			if !quiet {
-				if len(args) == 1 {
-					fmt.Fprintf(stdout, "Statistics for %s:\n", args[0])
+				if seq.Count == 0 {
+					fmt.Fprintf(stderr, "Statistics for %s:\n", args[0])
 				} else {
-					fmt.Fprintf(stdout, "Aggregated statistics for %d files:\n", len(args))
+					fmt.Fprintf(stderr, "Aggregated statistics for %d datasets:\n", seq.Count)
 				}
-				fmt.Fprintln(stdout)
+				fmt.Fprintln(stderr)
 			}
 
 			// Finish timing and print statistics
@@ -101,16 +81,14 @@ func newAggregateCmd() *cobra.Command {
 
 			if !quiet {
 				// Format and print the aggregated domain statistics
-				if err := internal.OutputDatasetStats(stdout, aggregated, verbose); err != nil {
-					fmt.Fprintf(stderr, "%v\n", err)
+				if err := internal.OutputDatasetStats(stderr, seq.Result, verbose); err != nil {
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to output dataset stats: %w", err)
 				}
 
-				fmt.Fprintln(stdout)
+				fmt.Fprintln(stderr)
 
-				if err := internal.OutputTimingStats(stdout, timing); err != nil {
-					fmt.Fprintf(stderr, "Failed to format timing statistics: %v\n", err)
+				if err := internal.OutputTimingStats(stderr, timing); err != nil {
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to format timing statistics: %w", err)
 				}

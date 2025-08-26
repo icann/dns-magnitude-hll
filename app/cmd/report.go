@@ -33,14 +33,6 @@ func newReportCmd() *cobra.Command {
 
 			filename := args[0]
 
-			// Load the DNSMAG file
-			stats, err := internal.LoadDNSMagFile(filename)
-			if err != nil {
-				fmt.Fprintf(stderr, "Failed to load DNSMAG file %s: %v\n", filename, err)
-				cmd.SilenceUsage = true
-				return fmt.Errorf("failed to load DNSMAG file %s: %w", filename, err)
-			}
-
 			var (
 				source     string
 				sourceType string
@@ -55,29 +47,37 @@ func newReportCmd() *cobra.Command {
 				"verbose":     &verbose,
 			})
 
+			seq := internal.NewDatasetSequence(0, nil)
+
+			if err := loadDatasets(cmd, seq, []string{filename}, verbose); err != nil {
+				cmd.SilenceUsage = true
+				return err
+			}
+
 			// Generate the report in a data structure conforming to the schema (report-schema.yaml)
-			report := internal.GenerateReport(stats, source, sourceType)
+			report := internal.GenerateReport(seq.Result, source, sourceType)
 
 			jsonData, err := json.MarshalIndent(report, "", "  ")
 			if err != nil {
-				fmt.Fprintf(stderr, "Failed to generate JSON report: %v\n", err)
 				cmd.SilenceUsage = true
 				return fmt.Errorf("failed to generate JSON report: %w", err)
 			}
 
 			// Write the report to the specified output file or stdout
-			if output != "" {
+			if output != "" && output != "-" {
 				err = os.WriteFile(output, jsonData, 0o644) // #nosec G306
 				if err != nil {
-					fmt.Fprintf(stderr, "Failed to write report to %s: %v\n", output, err)
 					cmd.SilenceUsage = true
 					return fmt.Errorf("failed to write report to %s: %w", output, err)
 				}
 				if verbose {
-					fmt.Fprintf(stdout, "Report written to %s\n", output)
+					fmt.Fprintf(stderr, "Report written to %s\n", output)
 				}
 			} else {
 				fmt.Fprintln(stdout, string(jsonData))
+				if verbose {
+					fmt.Fprintf(stderr, "Report written to STDOUT\n")
+				}
 			}
 
 			return nil

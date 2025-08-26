@@ -44,19 +44,69 @@ func TestCollect_JustCollect(t *testing.T) {
 			cmd.SetErr(stderr)
 			cmd.Execute()
 
-			t.Log(stdout.String())
+			t.Log(stderr.String())
 
 			for _, this := range tt.expectedOutput {
-				if !this.MatchString(stdout.String()) {
+				if !this.MatchString(stderr.String()) {
 					t.Fatalf(
 						"expected pattern %q not found in output:\n%s",
 						this.String(), stdout.String())
 				}
 			}
 
-			if stderr.Len() > 0 {
-				t.Fatalf("unexpected stderr output:\n%s", stderr.String())
+			// No output to stdout is expected for this test
+			if stdout.Len() > 0 {
+				t.Fatalf("unexpected stdout output:\n%s", stdout.String())
 			}
 		})
+	}
+}
+
+func TestCollect_WriteDNSMagFile_ReportCommandLine(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd := newCollectCmd()
+	cmd.SetArgs([]string{"../../testdata/test1.pcap.gz", "--output", "-"})
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("collect command failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	// Now pass the CBOR output buffer to the report command as stdin
+	reportStdout := &bytes.Buffer{}
+	reportStderr := &bytes.Buffer{}
+	reportCmd := newReportCmd()
+	reportCmd.SetArgs([]string{"-", "--source", "test"})
+	reportCmd.SetIn(stdout)
+	reportCmd.SetOut(reportStdout)
+	reportCmd.SetErr(reportStderr)
+	err = reportCmd.Execute()
+	if err != nil {
+		t.Fatalf("report command failed: %v\nstderr: %s", err, reportStderr.String())
+	}
+
+	regexpChecks := []struct {
+		name     string
+		pattern  string
+		expected bool
+	}{
+		{"date", `"date"\s*:\s*"2000-01-01"`, true},
+		{"totalQueryVolume", `"totalQueryVolume"\s*:\s*100`, true},
+		{"domain com", `"domain"\s*:\s*"com"`, true},
+		{"domain net", `"domain"\s*:\s*"net"`, true},
+		{"domain org", `"domain"\s*:\s*"org"`, true},
+		{"domain arpa", `"domain"\s*:\s*"arpa"`, true},
+	}
+
+	jsonOutput := reportStdout.String()
+	for _, check := range regexpChecks {
+		re := regexp.MustCompile(check.pattern)
+		found := re.MatchString(jsonOutput)
+		if found != check.expected {
+			t.Errorf("Regexp check '%s' failed: pattern %q, expected %v, got %v\nOutput:\n%s",
+				check.name, check.pattern, check.expected, found, jsonOutput)
+		}
 	}
 }

@@ -4,7 +4,6 @@ package cmd
 
 import (
 	"dnsmag/internal"
-	"fmt"
 
 	"github.com/spf13/cobra"
 )
@@ -16,7 +15,6 @@ func newViewCmd() *cobra.Command {
 		Long:  `View domain statistics from a previously saved DNSMAG file and display them.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
 			inputFile := args[0]
@@ -31,22 +29,17 @@ func newViewCmd() *cobra.Command {
 				"top":     &top,
 			})
 
-			// Load the CBOR file containing domain statistics (files with .dnsmag extension)
-			stats, err := internal.LoadDNSMagFile(inputFile)
-			if err != nil {
-				fmt.Fprintf(stderr, "Failed to load DNSMAG: %v\n", err)
+			seq := internal.NewDatasetSequence(top, nil)
+
+			if err := loadDatasets(cmd, seq, []string{inputFile}, verbose); err != nil {
 				cmd.SilenceUsage = true
-				return fmt.Errorf("failed to load DNSMAG file %s: %w", inputFile, err)
+				return err
 			}
 
-			// Truncate the stats to the top N domains
-			stats.Truncate(top)
-
 			// Format and print the domain statistics
-			if err := internal.OutputDatasetStats(stdout, stats, verbose); err != nil {
-				fmt.Fprintf(stderr, "%v\n", err)
+			if err := internal.OutputDatasetStats(stderr, seq.Result, verbose); err != nil {
 				cmd.SilenceUsage = true
-				return fmt.Errorf("failed to output dataset stats: %w", err)
+				return err
 			}
 
 			return nil

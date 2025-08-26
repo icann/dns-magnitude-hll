@@ -104,9 +104,66 @@ func TestReportCmd_OutputToStdout(t *testing.T) {
 		"--source-type", "authoritative",
 	})
 
+	var reportStdout bytes.Buffer
+	var reportStderr bytes.Buffer
+	reportCmd.SetOut(&reportStdout)
+	reportCmd.SetErr(&reportStderr)
+
+	err = reportCmd.Execute()
+	if err != nil {
+		t.Fatalf("Report command failed: %v\nOutput: %s", err, reportStdout.String())
+	}
+
+	output := reportStdout.String()
+
+	// Validate the JSON output using shared helper
+	validateReportJSON(t, []byte(output), "test-source", "authoritative")
+
+	// Validate that stderr is empty
+	if reportStderr.Len() != 0 {
+		t.Errorf("Expected stderr to be empty, got: %s", reportStderr.String())
+	}
+
+	t.Logf("Complete report structure validation passed")
+	t.Logf("Report command output:\n%s", output)
+}
+
+func TestReportCmd_OutputToStdout_FromStdin(t *testing.T) {
+	// Create temporary DNSMAG file
+	tmpDnsmag, err := os.CreateTemp("", "test_report_pipe_*.dnsmag")
+	if err != nil {
+		t.Fatalf("Failed to create temp DNSMAG file: %v", err)
+	}
+	defer os.Remove(tmpDnsmag.Name())
+	tmpDnsmag.Close()
+
+	// First, collect data from test1.pcap.gz into the temporary DNSMAG file
+	executeCollectAndVerify(t, []string{
+		"../../testdata/test1.pcap.gz",
+		"--output", tmpDnsmag.Name(),
+	}, 100, "PCAP")
+
+	// Open the DNSMAG file for reading (simulate piping to stdin)
+	file, err := os.Open(tmpDnsmag.Name())
+	if err != nil {
+		t.Fatalf("Failed to open DNSMAG file for reading: %v", err)
+	}
+	defer file.Close()
+
+	reportCmd := newReportCmd()
+	reportCmd.SetArgs([]string{
+		"-",
+		"--source", "test-source",
+		"--source-type", "recursive",
+		"--output", "-",
+		"--verbose",
+	})
+
 	var reportBuf bytes.Buffer
+	var reportErrBuf bytes.Buffer
+	reportCmd.SetIn(file)
 	reportCmd.SetOut(&reportBuf)
-	reportCmd.SetErr(&reportBuf)
+	reportCmd.SetErr(&reportErrBuf)
 
 	err = reportCmd.Execute()
 	if err != nil {
@@ -116,9 +173,15 @@ func TestReportCmd_OutputToStdout(t *testing.T) {
 	output := reportBuf.String()
 
 	// Validate the JSON output using shared helper
-	validateReportJSON(t, []byte(output), "test-source", "authoritative")
+	validateReportJSON(t, []byte(output), "test-source", "recursive")
 
-	t.Logf("Complete report structure validation passed")
+	// Check that the verbose message about printing the report appears on stderr
+	expectedVerboseMsg := "Report written to STDOUT"
+	if !regexp.MustCompile(regexp.QuoteMeta(expectedVerboseMsg)).MatchString(reportErrBuf.String()) {
+		t.Errorf("Expected verbose message about printing report to STDOUT not found in stderr: %s", reportErrBuf.String())
+	}
+
+	t.Logf("Complete report structure validation passed (piped to stdin, output to stdout)")
 	t.Logf("Report command output:\n%s", output)
 }
 

@@ -69,17 +69,10 @@ func TestOutputDatasetStats(t *testing.T) {
 10.0.0.5,example.com,2
 2001:db8::1,example.net,1`
 
-	reader := strings.NewReader(csvData)
-	testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
-
-	timing := NewTimingStats()
-	collector := NewCollector(DefaultDomainCount, 100000, true, &testDate, timing)
-	err := LoadCSVFromReader(reader, collector)
+	collector, err := loadDatasetFromCSV(csvData, "2009-12-21", false)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
 	}
-
-	collector.finalise()
 	dataset := collector.Result
 
 	// Validate the dataset before testing output
@@ -157,24 +150,11 @@ func TestOutputCollectorStats(t *testing.T) {
 192.168.1.20,example.org,3
 10.0.0.5,example.com,2`
 
-	reader := strings.NewReader(csvData)
-	testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
-
-	timing := NewTimingStats()
-	timing.StartParsing()
-	time.Sleep(1 * time.Millisecond) // Small delay for timing
-	timing.StopParsing()
-
-	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
-	collector.filesLoaded = []string{"test1.csv", "test2.csv"}
-
-	err := LoadCSVFromReader(reader, collector)
+	collector, err := loadDatasetFromCSV(csvData, "2009-12-21", true)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
 	}
-
-	collector.finalise()
-	timing.Finish()
+	collector.filesLoaded = []string{"test1.csv", "test2.csv"}
 
 	validateDataset(t, collector.Result, DatasetExpected{
 		queriesCount:    10,
@@ -249,24 +229,11 @@ func TestOutputCollectorStats_WriteErrors(t *testing.T) {
 192.168.1.20,example.org,3
 10.0.0.5,example.com,2`
 
-	reader := strings.NewReader(csvData)
-	testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
-
-	timing := NewTimingStats()
-	timing.StartParsing()
-	time.Sleep(1 * time.Millisecond) // Small delay for timing
-	timing.StopParsing()
-
-	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
-	collector.filesLoaded = []string{"test.csv"}
-
-	err := LoadCSVFromReader(reader, collector)
+	collector, err := loadDatasetFromCSV(csvData, "2009-12-21", true)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
 	}
-
-	collector.finalise()
-	timing.Finish()
+	collector.filesLoaded = []string{"test.csv"}
 
 	// First, determine the full output length with a normal buffer
 	var fullBuf bytes.Buffer
@@ -422,17 +389,10 @@ func TestFormatDatasetStats(t *testing.T) {
 	csvData := `192.168.1.10,example.com,5
 192.168.1.20,example.org,3`
 
-	reader := strings.NewReader(csvData)
-	testDate := time.Date(2009, 12, 21, 0, 0, 0, 0, time.UTC)
-
-	timing := NewTimingStats()
-	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
-	err := LoadCSVFromReader(reader, collector)
+	collector, err := loadDatasetFromCSV(csvData, "2009-12-21", false)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
 	}
-
-	collector.finalise()
 	dataset := collector.Result
 
 	// Validate the dataset before testing formatting
@@ -497,27 +457,15 @@ func TestCollectorAggregation_OutputVerification(t *testing.T) {
 	csvData2 := `10.0.0.1,example.com,2
 10.0.0.2,example.net,1`
 
-	testDate := time.Date(2007, 9, 9, 0, 0, 0, 0, time.UTC)
-
-	// Process first dataset
-	timing1 := NewTimingStats()
-	collector1 := NewCollector(DefaultDomainCount, 0, true, &testDate, timing1)
-	reader1 := strings.NewReader(csvData1)
-	err := LoadCSVFromReader(reader1, collector1)
+	collector1, err := loadDatasetFromCSV(csvData1, "2007-09-09", false)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed for dataset 1: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed for dataset 1: %v", err)
 	}
-	collector1.finalise()
 
-	// Process second dataset
-	timing2 := NewTimingStats()
-	collector2 := NewCollector(DefaultDomainCount, 0, true, &testDate, timing2)
-	reader2 := strings.NewReader(csvData2)
-	err = LoadCSVFromReader(reader2, collector2)
+	collector2, err := loadDatasetFromCSV(csvData2, "2007-09-09", false)
 	if err != nil {
-		t.Fatalf("LoadCSVFromReader failed for dataset 2: %v", err)
+		t.Fatalf("loadDatasetFromCSV failed for dataset 2: %v", err)
 	}
-	collector2.finalise()
 
 	// Aggregate the datasets
 	aggregated, err := AggregateDatasets([]MagnitudeDataset{collector1.Result, collector2.Result})

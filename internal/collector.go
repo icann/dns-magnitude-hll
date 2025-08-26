@@ -82,7 +82,7 @@ func (c *Collector) SetDate(date *time.Time) {
 	c.current.SetDate(date)
 }
 
-func (c *Collector) finalise() error {
+func (c *Collector) Finalise() error {
 	if err := c.migrateCurrent(); err != nil {
 		return fmt.Errorf("failed to migrate current dataset: %w", err)
 	}
@@ -117,7 +117,7 @@ func (c *Collector) ProcessFiles(files []string, filetype string) error {
 
 	c.timing.StopParsing()
 
-	if err := c.finalise(); err != nil {
+	if err := c.Finalise(); err != nil {
 		return fmt.Errorf("failed to finalise collection: %w", err)
 	}
 

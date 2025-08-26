@@ -3,7 +3,9 @@ package internal
 import (
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 type DatasetExpected struct {
@@ -106,4 +108,37 @@ func validateDatasetDomains(t *testing.T, dataset MagnitudeDataset, expected Dat
 				actualDomain, dataset.Domains[actualDomain].QueriesCount)
 		}
 	}
+}
+
+// loadDatasetFromCSV creates a dataset from CSV data string for testing
+// Returns the Collector for access to verbose stats and error counts.
+func loadDatasetFromCSV(csvData string, dateStr string, verbose bool) (*Collector, error) {
+	var date *time.Time
+	if dateStr != "" {
+		parsedDate, err := time.Parse(time.DateOnly, dateStr)
+		if err != nil {
+			return nil, err
+		}
+		date = &parsedDate
+	}
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, verbose, date, timing)
+	reader := strings.NewReader(csvData)
+
+	timing.StartParsing()
+
+	err := LoadCSVFromReader(reader, collector)
+	if err != nil {
+		return nil, err
+	}
+
+	err = collector.Finalise()
+	if err != nil {
+		return nil, err
+	}
+
+	timing.Finish()
+
+	return collector, nil
 }
