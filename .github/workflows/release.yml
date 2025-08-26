@@ -48,7 +48,7 @@ jobs:
           echo "GOARCH=$GOARCH" >> $GITHUB_ENV
       - name: Build
         run: |
-          make BINARY=$(BINARY_NAME) clean build
+          make BINARY=${{env.BINARY_NAME}} clean build
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
