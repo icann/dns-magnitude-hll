@@ -11,21 +11,13 @@ import (
 
 func newAggregateCmd() *cobra.Command {
 	aggregateCmd := &cobra.Command{
-		Use:   "aggregate <dnsmag-file1> <dnsmag-file2> [dnsmag-file3...]",
+		Use:   "aggregate <dnsmag-file1> [dnsmag-file2...]",
 		Short: "Aggregate multiple DNSMAG files into combined statistics",
 		Long:  `Aggregate domain statistics from multiple DNSMAG files into a single combined dataset.`,
-		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("requires at least 1 argument")
-			}
-			if len(args) == 1 && args[0] != "-" {
-				return fmt.Errorf("requires at least 2 files, or use '-' to read from stdin")
-			}
-			return nil
-		},
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stderr := cmd.ErrOrStderr()
 			stdout := cmd.OutOrStdout()
+			stderr := cmd.ErrOrStderr()
 
 			timing := internal.NewTimingStats()
 
