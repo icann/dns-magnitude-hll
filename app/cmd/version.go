@@ -1,13 +1,12 @@
 package cmd
 
 import (
+	"dnsmag/internal"
 	"fmt"
 
 	"github.com/spf13/cobra"
 )
 
-// version set at build time with -ldflags="-X dnsmag/app/cmd.Version=v0.0.1"
-var Version = "undefined"
 
 func newVersionCmd() *cobra.Command {
 	versionCmd := &cobra.Command{
@@ -17,7 +16,7 @@ func newVersionCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, _ []string) {
 			stdout := cmd.OutOrStdout()
 
-			fmt.Fprintf(stdout, "dnsmag %s\n", Version)
+			fmt.Fprintf(stdout, "dnsmag %s\n", internal.Version)
 		},
 	}
 

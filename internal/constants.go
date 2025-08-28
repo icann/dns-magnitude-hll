@@ -21,3 +21,6 @@ const (
 
 // regex for domain name validation. Pre-compiled for performance.
 var DomainNameRegex = regexp.MustCompile("^[a-z][a-z0-9-]*[a-z0-9]$")
+
+// version set at build time with -ldflags="-X dnsmag/internal.Version=v0.0.1"
+var Version = "undefined"

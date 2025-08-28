@@ -3,11 +3,14 @@
 package internal
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 )
 
 type Report struct {
 	Identifier         string          `json:"id"`
+	Generator          string          `json:"generator"`
 	Date               string          `json:"date"`
 	Source             string          `json:"source"`
 	SourceType         string          `json:"sourceType"`
@@ -41,6 +44,7 @@ func GenerateReport(stats MagnitudeDataset, source, sourceType string) Report {
 	report := Report{
 		Date:               stats.DateString(),
 		Identifier:         uuid.New().String(),
+		Generator:          fmt.Sprintf("dnsmag %s", Version),
 		Source:             source,
 		SourceType:         sourceType,
 		TotalUniqueClients: stats.AllClientsCount,

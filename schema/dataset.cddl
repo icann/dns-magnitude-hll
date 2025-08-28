@@ -3,6 +3,7 @@
 magnitude_dataset = {
   version: uint                       ; "Dataset version (1)"
   id: tstr                            ; "Unique identifier of the dataset"
+  ? generator: tstr                   ; "Dataset generator"
   date: tcaldate                      ; "UTC day of data collected"
   all_clients_hll: bstr               ; "Aggregate Knowledge HLL of all clients"
   all_clients_count: uint             ; "Number of unique clients in total"
