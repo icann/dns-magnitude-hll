@@ -25,6 +25,7 @@ func TestGenerateReport_HardcodedComparison(t *testing.T) {
 	expected := Report{
 		Date:               "2007-09-09",
 		Identifier:         actual.Identifier,
+		Generator:	    "dnsmag undefined",
 		Source:             "test-source",
 		SourceType:         "authoritative",
 		TotalUniqueClients: 4,
