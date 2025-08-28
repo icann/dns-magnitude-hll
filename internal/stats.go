@@ -87,6 +87,8 @@ func formatGeneralStats(dataset MagnitudeDataset) []TableRow {
 
 	table = append(table, TableRow{"Dataset statistics", ""})
 	table = append(table, TableRow{"Date", dataset.DateString()})
+	table = append(table, TableRow{"Id", dataset.Identifier})
+	table = append(table, TableRow{"Generator", dataset.Generator})
 	table = append(table, TableRow{"Total queries", fmt.Sprintf("%d", dataset.AllQueriesCount)})
 
 	numDomains := uint64(len(dataset.Domains))

@@ -1,6 +1,6 @@
 BINARY_NAME=	dnsmag
 VERSION=	$(shell git describe --tags --always)
-LDFLAGS=	-X dnsmag/app/cmd.Version=$(VERSION)
+LDFLAGS=	-X dnsmag/internal.Version=$(VERSION)
 
 
 all: build

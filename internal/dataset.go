@@ -27,6 +27,7 @@ type TimeWrapper struct {
 type MagnitudeDataset struct {
 	Version             uint16                    `cbor:"version"`
 	Identifier          string                    `cbor:"id"`                // Unique identifier of the dataset
+	Generator           string                    `cbor:"generator"`         // Generator identifier (e.g., the software creating the dataset)
 	Date                *TimeWrapper              `cbor:"date"`              // UTC date of collection
 	AllClientsHll       *HLLWrapper               `cbor:"all_clients_hll"`   // HLL for all unique source IPs
 	AllClientsCount     uint64                    `cbor:"all_clients_count"` // Cardinality of GlobalHll
@@ -67,6 +68,7 @@ func newDataset(date *time.Time) MagnitudeDataset {
 	dataset := MagnitudeDataset{
 		Version:             1,
 		Identifier:          uuid.New().String(),
+		Generator:           fmt.Sprintf("dnsmag %s", Version),
 		AllClientsHll:       &HLLWrapper{Hll: &hll.Hll{}},
 		Domains:             make(map[DomainName]domainData),
 		AllClientsCount:     0,
