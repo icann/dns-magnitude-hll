@@ -22,6 +22,9 @@ test2: $(BINARY_NAME)
 interop_vectors:
 	go test -v -run ^TestInteropVector ./internal/
 
+release:
+	goreleaser release --snapshot --clean
+
 clean:
 	rm -f $(BINARY_NAME)
 	rm -f testdata/*.tmp

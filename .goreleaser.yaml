@@ -1,0 +1,29 @@
+version: 2
+
+builds:
+  - binary: dnsmag
+    main: ./app
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -X dnsmag/internal.Version={{.Version}}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+nfpms:
+  - package_name: dnsmag
+    file_name_template: "{{ .ConventionalFileName }}"
+    vendor: ICANN
+    homepage: https://www.icann.org/
+    description: |-
+      DNS Magnitude HLL Toolkit
+    license: BSD
+    formats:
+      - apk
+      - deb
+      - rpm
+    bindir: /usr/bin
