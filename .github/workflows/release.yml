@@ -2,57 +2,31 @@ on:
   push:
     # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
 
 name: Release
 
-defaults:
-  run:
-    shell: bash
+permissions:
+  contents: write
 
 jobs:
   release:
     name: Build and publish release
     runs-on: ubuntu-latest
-    permissions:
-     contents: write
-    strategy:
-      matrix:
-        go-version:
-          - "1.24.6"
-        go-os-arch:
-          - "linux/amd64"
-          - "linux/arm64"
-          - "darwin/amd64"
-          - "darwin/arm64"
-          - "freebsd/amd64"
-          - "freebsd/arm64"
-          - "netbsd/amd64"
-          - "netbsd/arm64"
-          - "openbsd/amd64"
-          - "openbsd/arm64"
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go ${{ matrix.go-version }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
-      - name: Get OS and arch info
-        run: |
-          GOOSARCH=${{matrix.go-os-arch}}
-          GOOS=${GOOSARCH%/*}
-          GOARCH=${GOOSARCH#*/}
-          BINARY_NAME=dnsmag-$GOOS-$GOARCH
-          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
-          echo "GOOS=$GOOS" >> $GITHUB_ENV
-          echo "GOARCH=$GOARCH" >> $GITHUB_ENV
-      - name: Build
-        run: |
-          make BINARY_NAME=${{env.BINARY_NAME}} clean build
-      - name: Release
-        uses: softprops/action-gh-release@v2
+          go-version: stable
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          draft: true
-          files: ${{env.BINARY_NAME}}
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
