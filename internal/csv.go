@@ -74,6 +74,7 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector) error {
 	csvReader.TrimLeadingSpace = true
 	csvReader.FieldsPerRecord = -1    // allow either 2 or 3 fields per record
 	csvReader.Comma = rune(delimiter) // set chosen delimiter
+	csvReader.LazyQuotes = true
 
 	for {
 		record, err := csvReader.Read()
