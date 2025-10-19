@@ -301,3 +301,49 @@ func TestLoadCSVFromReader_MixedValidInvalidRecords(t *testing.T) {
 		invalidRecords:  1,
 	}, collector)
 }
+
+func TestLoadCSVFromReader_TrailingDot(t *testing.T) {
+	csvData := `192.168.1.1,com.,5`
+
+	reader := strings.NewReader(csvData)
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
+	err := LoadCSVFromReader(reader, collector)
+	if err != nil {
+		t.Fatalf("LoadCSVFromReader failed: %v", err)
+	}
+
+	collector.Finalise()
+
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:    5,
+		domainCount:     1,
+		expectedDomains: []string{"com"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
+}
+
+func TestLoadCSVFromReader_TestTabSeparated(t *testing.T) {
+	csvData := "192.168.1.1\tcom\t5\n"
+
+	reader := strings.NewReader(csvData)
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
+	err := LoadCSVFromReader(reader, collector)
+	if err != nil {
+		t.Fatalf("LoadCSVFromReader failed: %v", err)
+	}
+
+	collector.Finalise()
+
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:    5,
+		domainCount:     1,
+		expectedDomains: []string{"com"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
+}

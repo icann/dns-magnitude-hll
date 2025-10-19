@@ -53,10 +53,27 @@ func getReaderFromFile(file *os.File) (io.Reader, error) {
 }
 
 func LoadCSVFromReader(reader io.Reader, collector *Collector) error {
-	csvReader := csv.NewReader(reader)
+	// Wrap reader so we can peek the first line and then re-compose the full stream.
+	br := bufio.NewReader(reader)
+	firstLine, err := br.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("failed to peek first line of CSV data: %w", err)
+	}
+
+	// Decide delimiter based on presence of a tab in the first line
+	delimiter := ','
+	if strings.Contains(firstLine, "\t") {
+		delimiter = '\t'
+	}
+
+	// Recreate a reader that yields the first line we consumed followed by the remaining buffered data.
+	fullReader := io.MultiReader(strings.NewReader(firstLine), br)
+
+	csvReader := csv.NewReader(fullReader)
 	csvReader.Comment = '#'
 	csvReader.TrimLeadingSpace = true
-	csvReader.FieldsPerRecord = -1 // allow either 2 or 3 fields per record
+	csvReader.FieldsPerRecord = -1    // allow either 2 or 3 fields per record
+	csvReader.Comma = rune(delimiter) // set chosen delimiter
 
 	for {
 		record, err := csvReader.Read()
