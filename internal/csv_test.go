@@ -347,3 +347,97 @@ func TestLoadCSVFromReader_TestTabSeparated(t *testing.T) {
 		invalidRecords:  0,
 	}, collector)
 }
+
+func TestUnescapeDomain(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain text",
+			input:    "example",
+			expected: "example",
+		},
+		{
+			name:     "octal escapes",
+			input:    "\\163\\145", // \163\145 -> "se"
+			expected: "se",
+		},
+		{
+			name:     "hex escapes (lowercase x)",
+			input:    "\\x73\\x65", // \x73\x65 -> "se"
+			expected: "se",
+		},
+		{
+			name:     "mixed with octal producing space",
+			input:    "hello\\040world", // \040 -> space
+			expected: "hello world",
+		},
+		{
+			name:     "hex followed by literal",
+			input:    "\\x41B", // \x41 -> 'A' then 'B'
+			expected: "AB",
+		},
+		{
+			name:     "trailing backslash",
+			input:    "\\",
+			expected: "\\",
+		},
+		{
+			name:     "bare \\x with no hex digits",
+			input:    "\\x",
+			expected: "x",
+		},
+		{
+			name:     "invalid octal digit falls back to literal",
+			input:    "\\8",
+			expected: "8",
+		},
+		{
+			name:     "invalid hexdigit falls back to literal",
+			input:    "\\xg",
+			expected: "xg",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := unescapeDomain(tc.input)
+			if got != tc.expected {
+				t.Errorf("unescapeDomain(%q) = %q; want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestLoadCSVFromReader_TestTabSeparatedStrangeDomain(t *testing.T) {
+	csvData := "192.0.2.1\t\\042#$%'\\(\\)*+,-<>[]_~\t4\n" + "192.168.1.1\tcom.\t5\n"
+
+	reader := strings.NewReader(csvData)
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
+	err := LoadCSVFromReader(reader, collector)
+	if err != nil {
+		t.Fatalf("LoadCSVFromReader failed: %v", err)
+	}
+
+	collector.Finalise()
+	dataset := collector.Result
+
+	validateDataset(t, dataset, DatasetExpected{
+		queriesCount:    9,
+		domainCount:     1,
+		expectedDomains: []string{"com"},
+		invalidDomains:  1,
+		invalidRecords:  0,
+	}, collector)
+
+	validateDatasetDomains(t, dataset, DatasetDomainsExpected{
+		expectedDomains: map[DomainName]uint64{
+			"com": 5,
+		},
+	})
+
+}
