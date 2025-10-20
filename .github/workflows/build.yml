@@ -12,8 +12,7 @@ jobs:
     strategy:
       matrix:
         go-version:
-          - "1.23.12"
-          - "1.24.6"
+          - "1.25.2"
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go ${{ matrix.go-version }}
@@ -25,7 +24,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.2.2
+          version: v2.5.0
           args: --timeout=5m
       - name: Build
         run: make build
@@ -35,8 +34,7 @@ jobs:
     strategy:
       matrix:
         go-version:
-          - "1.23.12"
-          - "1.24.6"
+          - "1.25.2"
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go ${{ matrix.go-version }}

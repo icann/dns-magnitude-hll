@@ -439,5 +439,4 @@ func TestLoadCSVFromReader_TestTabSeparatedStrangeDomain(t *testing.T) {
 			"com": 5,
 		},
 	})
-
 }
