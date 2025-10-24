@@ -440,3 +440,44 @@ func TestLoadCSVFromReader_TestTabSeparatedStrangeDomain(t *testing.T) {
 		},
 	})
 }
+
+func TestLoadCSVFile_TSV_Normal_data(t *testing.T) {
+	path := "../testdata/test2.tsv"
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
+
+	if err := LoadCSVFile(path, collector, "tsv"); err != nil {
+		t.Fatalf("LoadCSVFile failed for %s: %v", path, err)
+	}
+
+	collector.Finalise()
+
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:    200,
+		domainCount:     7,
+		expectedDomains: []string{"uk", "local", "org", "arpa", "me", "net", "com"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
+}
+
+func TestLoadCSVFile_TSV_Strange_data(t *testing.T) {
+	path := "../testdata/test3.tsv"
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
+
+	if err := LoadCSVFile(path, collector, "tsv"); err != nil {
+		t.Fatalf("LoadCSVFile failed for %s: %v", path, err)
+	}
+
+	collector.Finalise()
+
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:   16,
+		domainCount:    0,
+		invalidDomains: 10,
+		invalidRecords: 0,
+	}, collector)
+}
