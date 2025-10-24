@@ -44,9 +44,9 @@ Save them to a DNSMAG file (CBOR format).`,
 			})
 
 			// Validate filetype
-			if filetype != "pcap" && filetype != "csv" {
+			if filetype != "pcap" && filetype != "csv" && filetype != "tsv" {
 				cmd.SilenceUsage = true
-				return fmt.Errorf("invalid filetype '%s', must be 'pcap' or 'csv'", filetype)
+				return fmt.Errorf("invalid filetype '%s', must be 'pcap', 'csv' or 'tsv'", filetype)
 			}
 
 			// Parse date if provided
