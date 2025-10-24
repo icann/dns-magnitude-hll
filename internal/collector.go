@@ -104,8 +104,8 @@ func (c *Collector) ProcessFiles(files []string, filetype string) error {
 		}
 
 		var err error
-		if filetype == "csv" {
-			err = LoadCSVFile(inputFile, c)
+		if filetype == "csv" || filetype == "tsv" {
+			err = LoadCSVFile(inputFile, c, filetype)
 		} else {
 			err = LoadPcap(inputFile, c)
 		}
