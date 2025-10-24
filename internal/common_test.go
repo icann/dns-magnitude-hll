@@ -128,7 +128,7 @@ func loadDatasetFromCSV(csvData string, dateStr string, verbose bool) (*Collecto
 
 	timing.StartParsing()
 
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "csv")
 	if err != nil {
 		return nil, err
 	}

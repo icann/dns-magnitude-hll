@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func LoadCSVFile(filename string, collector *Collector) error {
+func LoadCSVFile(filename string, collector *Collector, filetype string) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %w", filename, err)
@@ -25,7 +25,7 @@ func LoadCSVFile(filename string, collector *Collector) error {
 		return fmt.Errorf("failed to read CSV: %w", err)
 	}
 
-	err = LoadCSVFromReader(reader, collector)
+	err = LoadCSVFromReader(reader, collector, filetype)
 	if err != nil {
 		return fmt.Errorf("failed to parse CSV: %w", err)
 	}
@@ -52,29 +52,19 @@ func getReaderFromFile(file *os.File) (io.Reader, error) {
 	return br, nil
 }
 
-func LoadCSVFromReader(reader io.Reader, collector *Collector) error {
-	// Wrap reader so we can peek the first line and then re-compose the full stream.
-	br := bufio.NewReader(reader)
-	firstLine, err := br.ReadString('\n')
-	if err != nil && err != io.EOF {
-		return fmt.Errorf("failed to peek first line of CSV data: %w", err)
-	}
-
-	// Decide delimiter based on presence of a tab in the first line
+func LoadCSVFromReader(reader io.Reader, collector *Collector, filetype string) error {
+	// choose delimiter: if filetype == "tsv" force tab, otherwise use configured csvDelimiter
 	delimiter := ','
-	if strings.Contains(firstLine, "\t") {
+	if filetype == "tsv" {
 		delimiter = '\t'
 	}
 
-	// Recreate a reader that yields the first line we consumed followed by the remaining buffered data.
-	fullReader := io.MultiReader(strings.NewReader(firstLine), br)
-
-	csvReader := csv.NewReader(fullReader)
+	csvReader := csv.NewReader(reader)
 	csvReader.Comment = '#'
 	csvReader.TrimLeadingSpace = true
-	csvReader.FieldsPerRecord = -1    // allow either 2 or 3 fields per record
-	csvReader.Comma = rune(delimiter) // set chosen delimiter
-	csvReader.LazyQuotes = true
+	csvReader.FieldsPerRecord = -1 // allow either 2 or 3 fields per record
+	csvReader.Comma = delimiter    // use configured or overridden delimiter
+	csvReader.LazyQuotes = true    // be forgiving with quotes
 
 	for {
 		record, err := csvReader.Read()

@@ -167,7 +167,9 @@ func formatCollectorStats(collector *Collector) []TableRow {
 	heapStr := fmt.Sprintf("%d MB", m.HeapAlloc/1024/1024)
 	maxStr := fmt.Sprintf("%d MB", m.HeapSys/1024/1024)
 	table = append(table, TableRow{"Memory allocated", fmt.Sprintf("%s (peak estimated: %s)", heapStr, maxStr)})
-	table = append(table, TableRow{"Memory allocated per domain", fmt.Sprintf("%d B (peak)", m.HeapSys/numDomains)})
+	if numDomains > 0 {
+		table = append(table, TableRow{"Memory allocated per domain", fmt.Sprintf("%d B (peak)", m.HeapSys/numDomains)})
+	}
 
 	return table
 }

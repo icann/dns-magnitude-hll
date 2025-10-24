@@ -25,7 +25,7 @@ func TestLoadCSVFromReader(t *testing.T) {
 	verbose := false
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "csv")
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestLoadCSVFromReader_VerboseMode(t *testing.T) {
 	verbose := true
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, verbose, &testDate, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "csv")
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestLoadCSVFromReader_InvalidRecord(t *testing.T) {
 
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "csv")
 	if err == nil {
 		t.Error("Expected error for invalid CSV record, got nil")
 	}
@@ -147,7 +147,7 @@ func TestLoadCSVFile_InvalidFile(t *testing.T) {
 			timing := NewTimingStats()
 			collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
 
-			err = LoadCSVFile(tmpFile.Name(), collector)
+			err = LoadCSVFile(tmpFile.Name(), collector, "csv")
 			if err == nil {
 				t.Error("Expected error for invalid CSV file, got nil")
 				return
@@ -242,7 +242,7 @@ func TestLoadCSVFromReader_CompleteDatasetVerification(t *testing.T) {
 
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, true, &testDate, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "csv")
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestLoadCSVFromReader_MixedValidInvalidRecords(t *testing.T) {
 
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "csv")
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestLoadCSVFromReader_TrailingDot(t *testing.T) {
 
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "csv")
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
@@ -332,7 +332,7 @@ func TestLoadCSVFromReader_TestTabSeparated(t *testing.T) {
 
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "tsv")
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestLoadCSVFromReader_TestTabSeparatedStrangeDomain(t *testing.T) {
 
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
-	err := LoadCSVFromReader(reader, collector)
+	err := LoadCSVFromReader(reader, collector, "tsv")
 	if err != nil {
 		t.Fatalf("LoadCSVFromReader failed: %v", err)
 	}
@@ -439,4 +439,45 @@ func TestLoadCSVFromReader_TestTabSeparatedStrangeDomain(t *testing.T) {
 			"com": 5,
 		},
 	})
+}
+
+func TestLoadCSVFile_TSV_Normal_data(t *testing.T) {
+	path := "../testdata/test2.tsv"
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
+
+	if err := LoadCSVFile(path, collector, "tsv"); err != nil {
+		t.Fatalf("LoadCSVFile failed for %s: %v", path, err)
+	}
+
+	collector.Finalise()
+
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:    200,
+		domainCount:     7,
+		expectedDomains: []string{"uk", "local", "org", "arpa", "me", "net", "com"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
+}
+
+func TestLoadCSVFile_TSV_Strange_data(t *testing.T) {
+	path := "../testdata/test3.tsv"
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
+
+	if err := LoadCSVFile(path, collector, "tsv"); err != nil {
+		t.Fatalf("LoadCSVFile failed for %s: %v", path, err)
+	}
+
+	collector.Finalise()
+
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:   16,
+		domainCount:    0,
+		invalidDomains: 10,
+		invalidRecords: 0,
+	}, collector)
 }

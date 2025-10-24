@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"dnsmag/internal"
+	"os"
 	"regexp"
 	"testing"
 )
@@ -108,5 +109,72 @@ func TestCollect_WriteDNSMagFile_ReportCommandLine(t *testing.T) {
 			t.Errorf("Regexp check '%s' failed: pattern %q, expected %v, got %v\nOutput:\n%s",
 				check.name, check.pattern, check.expected, found, jsonOutput)
 		}
+	}
+}
+
+func TestCollect_NoDomainsCSV_Verbose(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	// create temp CSV file with only a comment to get past the GZIP detection
+	tmp, err := os.CreateTemp("", "no_domains_*.csv")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.WriteString("# this is an empty CSV file\n"); err != nil {
+		tmp.Close()
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmp.Close()
+
+	cmd := newCollectCmd()
+	cmd.SetArgs([]string{tmp.Name(), "--filetype", "csv", "--verbose"})
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("collect command failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	t.Log(stderr.String())
+
+	// No output to stdout is expected for this test
+	if stdout.Len() > 0 {
+		t.Fatalf("unexpected stdout output:\n%s", stdout.String())
+	}
+
+	tests := []struct {
+		name           string
+		args           []string
+		expectedOutput []*regexp.Regexp
+	}{
+		{
+			name: "basic collect",
+			args: []string{"../../testdata/test1.pcap.gz"},
+			expectedOutput: []*regexp.Regexp{
+				regexp.MustCompile(`Statistics for .*no_domains.*:`),
+				regexp.MustCompile(`Dataset statistics`),
+				regexp.MustCompile(`Total queries\s+:\s+0`),
+				regexp.MustCompile(`Total domains\s+:\s+0`),
+				regexp.MustCompile(`Collection statistics`),
+				regexp.MustCompile(`Files loaded\s+:\s+1`),
+				regexp.MustCompile(`Records processed\s+:\s+0`),
+				regexp.MustCompile(`Timing statistics`),
+				regexp.MustCompile(`Memory allocated\s+:\s+\d+ MB`), // expect single digit MB, 0 or 1 usually
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, this := range tt.expectedOutput {
+				if !this.MatchString(stderr.String()) {
+					t.Fatalf(
+						"expected pattern %q not found in output:\n%s",
+						this.String(), stdout.String())
+				}
+			}
+		})
 	}
 }

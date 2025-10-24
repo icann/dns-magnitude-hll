@@ -44,9 +44,9 @@ Save them to a DNSMAG file (CBOR format).`,
 			})
 
 			// Validate filetype
-			if filetype != "pcap" && filetype != "csv" {
+			if filetype != "pcap" && filetype != "csv" && filetype != "tsv" {
 				cmd.SilenceUsage = true
-				return fmt.Errorf("invalid filetype '%s', must be 'pcap' or 'csv'", filetype)
+				return fmt.Errorf("invalid filetype '%s', must be 'pcap', 'csv' or 'tsv'", filetype)
 			}
 
 			// Parse date if provided
@@ -112,7 +112,7 @@ Save them to a DNSMAG file (CBOR format).`,
 	}
 	collectCmd.Flags().IntP("top", "n", internal.DefaultDomainCount, "Number of domains to collect")
 	collectCmd.Flags().StringP("output", "o", "", "Output file to save the aggregated dataset (optional, only shows stats on stderr if not specified)")
-	collectCmd.Flags().String("filetype", "pcap", "Input file type: 'pcap' or 'csv'")
+	collectCmd.Flags().String("filetype", "pcap", "Input file type: 'pcap', 'csv' or 'tsv'")
 	collectCmd.Flags().String("date", "", "Date for CSV data in YYYY-MM-DD format (optional, defaults to data from input files or the current date)")
 	collectCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
 	collectCmd.Flags().BoolP("quiet", "q", false, "Quiet mode")
