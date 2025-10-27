@@ -363,7 +363,7 @@ func TestWriteDNSMagFile_WriteToStdout(t *testing.T) {
 	// Load test1.pcap.gz file using a Collector
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
-	err := collector.ProcessFiles([]string{"../testdata/test1.pcap.gz"}, "pcap")
+	err := collector.ProcessFiles([]string{"../testdata/test1.pcap.gz"}, "pcap", nil)
 	if err != nil {
 		t.Fatalf("ProcessFiles failed: %v", err)
 	}

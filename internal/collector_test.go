@@ -70,7 +70,7 @@ func TestCollectorChunking(t *testing.T) {
 			timing := NewTimingStats()
 			collector := NewCollector(DefaultDomainCount, chunkSize, true, &testDate, timing)
 
-			err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv")
+			err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv", nil)
 			if err != nil {
 				t.Fatalf("ProcessFiles failed: %v", err)
 			}
@@ -117,7 +117,7 @@ func TestCollectorPcapLoading(t *testing.T) {
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 0, true, nil, timing)
 
-	err := collector.ProcessFiles([]string{"../testdata/test1.pcap.gz"}, "pcap")
+	err := collector.ProcessFiles([]string{"../testdata/test1.pcap.gz"}, "pcap", nil)
 	if err != nil {
 		t.Fatalf("ProcessFiles failed for PCAP: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestCollectorNonExistentFiles(t *testing.T) {
 			timing := NewTimingStats()
 			collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
 
-			err := collector.ProcessFiles(tt.files, tt.filetype)
+			err := collector.ProcessFiles(tt.files, tt.filetype, nil)
 
 			if err == nil {
 				t.Error("Expected error for non-existent file, got nil")
@@ -246,7 +246,7 @@ func TestCollectorFileLoadingError(t *testing.T) {
 				tmpFile.Close()
 				return tmpFile.Name(), func() { os.Remove(tmpFile.Name()) }
 			},
-			errMsg: "failed to parse CSV: failed to process CSV record at line 2: failed to process record: failed to migrate current dataset: failed to aggregate datasets: version mismatch: dataset",
+			errMsg: "failed to process CSV record at line 2: failed to process record: failed to migrate current dataset: failed to aggregate datasets: version mismatch: dataset",
 		},
 		{
 			name:      "PCAP aggregation error",
@@ -270,7 +270,7 @@ func TestCollectorFileLoadingError(t *testing.T) {
 			// Modify the Result dataset version to make file loading fail
 			collector.Result.Version++
 
-			err := collector.ProcessFiles([]string{filename}, tt.filetype)
+			err := collector.ProcessFiles([]string{filename}, tt.filetype, nil)
 
 			if err == nil {
 				t.Error("Expected version mismatch error, got nil")
@@ -311,7 +311,7 @@ func TestCollectorGzippedCSV(t *testing.T) {
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
 
-	err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv")
+	err = collector.ProcessFiles([]string{tmpFile.Name()}, "csv", nil)
 	if err != nil {
 		t.Fatalf("ProcessFiles failed for gzipped CSV: %v", err)
 	}

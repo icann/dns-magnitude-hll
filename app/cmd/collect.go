@@ -18,6 +18,7 @@ func newCollectCmd() *cobra.Command {
 Save them to a DNSMAG file (CBOR format).`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			stdin := cmd.InOrStdin()
 			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
 
@@ -74,7 +75,7 @@ Save them to a DNSMAG file (CBOR format).`,
 				chunkSize = uint(chunk) * 1000 * 1000
 			}
 			collector := internal.NewCollector(topCount, chunkSize, verbose, date, timing)
-			err := collector.ProcessFiles(args, filetype)
+			err := collector.ProcessFiles(args, filetype, stdin)
 			if err != nil {
 				cmd.SilenceUsage = true
 				return fmt.Errorf("failed to process files: %w", err)

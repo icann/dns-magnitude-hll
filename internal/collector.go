@@ -96,7 +96,7 @@ func (c *Collector) Finalise() error {
 }
 
 // ProcessFiles processes multiple input files into collector.Result
-func (c *Collector) ProcessFiles(files []string, filetype string) error {
+func (c *Collector) ProcessFiles(files []string, filetype string, stdin io.Reader) error {
 	c.timing.StartParsing()
 
 	// Process each input file
@@ -108,7 +108,8 @@ func (c *Collector) ProcessFiles(files []string, filetype string) error {
 		var err error
 		var reader io.Reader
 		if inputFile == "-" {
-			reader = os.Stdin
+			reader = stdin
+			inputFile = "<stdin>"
 		} else {
 			var f *os.File
 			f, err = os.Open(inputFile)

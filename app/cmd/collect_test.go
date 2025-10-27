@@ -63,6 +63,49 @@ func TestCollect_JustCollect(t *testing.T) {
 	}
 }
 
+func TestCollect_JustCollect_Stdin(t *testing.T) {
+	// Read the test pcap.gz into memory and provide it as stdin to the command.
+	path := "../../testdata/test1.pcap.gz"
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read test pcap file: %v", err)
+	}
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd := newCollectCmd()
+	// Use "-" to indicate stdin as input, do not request output file so stats print to stderr.
+	cmd.SetArgs([]string{"-"})
+	cmd.SetIn(bytes.NewReader(data))
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("collect command failed when reading from stdin: %v\nstderr: %s", err, stderr.String())
+	}
+
+	// Verify stderr contains expected statistics
+	expectedPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`Dataset statistics`),
+		regexp.MustCompile(`Date\s*:\s*2000-01-01`),
+		regexp.MustCompile(`Total queries\s*:\s*100`),
+		regexp.MustCompile(`Total domains\s*:\s*4`),
+		regexp.MustCompile(`Records processed\s*:\s*100`),
+	}
+
+	out := stderr.String()
+	for _, re := range expectedPatterns {
+		if !re.MatchString(out) {
+			t.Fatalf("expected pattern %q not found in stderr:\n%s", re.String(), out)
+		}
+	}
+
+	// For this invocation (no --output), stdout should be empty
+	if stdout.Len() > 0 {
+		t.Fatalf("unexpected stdout output when reading from stdin:\n%s", stdout.String())
+	}
+}
+
 func TestCollect_WriteDNSMagFile_ReportCommandLine(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
