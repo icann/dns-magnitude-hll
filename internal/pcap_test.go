@@ -45,8 +45,10 @@ func TestLoadPcap_TestData(t *testing.T) {
 			timing := NewTimingStats()
 			collector := NewCollector(DefaultDomainCount, 0, true, &testDate, timing)
 
+			reader := readerFromFile(t, tt.pcapFile)
+
 			// Load and process the PCAP file
-			err := LoadPcap(tt.pcapFile, collector)
+			err := LoadPcap(reader, collector)
 
 			if tt.expectError {
 				if err == nil {
