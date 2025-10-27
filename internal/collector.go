@@ -4,6 +4,8 @@ package internal
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"runtime"
 	"time"
 )
@@ -104,10 +106,24 @@ func (c *Collector) ProcessFiles(files []string, filetype string) error {
 		}
 
 		var err error
-		if filetype == "csv" || filetype == "tsv" {
-			err = LoadCSVFile(inputFile, c, filetype)
+		var reader io.Reader
+		if inputFile == "-" {
+			reader = os.Stdin
 		} else {
-			err = LoadPcap(inputFile, c)
+			var f *os.File
+			f, err = os.Open(inputFile)
+			if err == nil {
+				defer f.Close()
+				reader = f
+			}
+		}
+
+		if reader != nil {
+			if filetype == "csv" || filetype == "tsv" {
+				err = LoadCSVFromReader(reader, c, filetype)
+			} else {
+				err = LoadPcap(reader, c)
+			}
 		}
 
 		if err != nil {

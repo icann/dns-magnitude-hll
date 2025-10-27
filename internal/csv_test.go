@@ -121,12 +121,12 @@ func TestLoadCSVFile_InvalidFile(t *testing.T) {
 		{
 			name:        "single byte file",
 			content:     []byte("x"),
-			errorPrefix: "failed to read CSV: ",
+			errorPrefix: "failed to get reader: EOF",
 		},
 		{
 			name:        "three byte file",
 			content:     []byte("xyz"),
-			errorPrefix: "failed to parse CSV: ",
+			errorPrefix: "failed to process CSV record at line 1: CSV record must have at least two fields (client, domain), got 1",
 		},
 	}
 
@@ -147,7 +147,9 @@ func TestLoadCSVFile_InvalidFile(t *testing.T) {
 			timing := NewTimingStats()
 			collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
 
-			err = LoadCSVFile(tmpFile.Name(), collector, "csv")
+			reader := readerFromFile(t, tmpFile.Name())
+
+			err = LoadCSVFromReader(reader, collector, "csv")
 			if err == nil {
 				t.Error("Expected error for invalid CSV file, got nil")
 				return
@@ -444,10 +446,12 @@ func TestLoadCSVFromReader_TestTabSeparatedStrangeDomain(t *testing.T) {
 func TestLoadCSVFile_TSV_Normal_data(t *testing.T) {
 	path := "../testdata/test2.tsv"
 
+	reader := readerFromFile(t, path)
+
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
 
-	if err := LoadCSVFile(path, collector, "tsv"); err != nil {
+	if err := LoadCSVFromReader(reader, collector, "tsv"); err != nil {
 		t.Fatalf("LoadCSVFile failed for %s: %v", path, err)
 	}
 
@@ -465,10 +469,12 @@ func TestLoadCSVFile_TSV_Normal_data(t *testing.T) {
 func TestLoadCSVFile_TSV_Strange_data(t *testing.T) {
 	path := "../testdata/test3.tsv"
 
+	reader := readerFromFile(t, path)
+
 	timing := NewTimingStats()
 	collector := NewCollector(DefaultDomainCount, 0, false, nil, timing)
 
-	if err := LoadCSVFile(path, collector, "tsv"); err != nil {
+	if err := LoadCSVFromReader(reader, collector, "tsv"); err != nil {
 		t.Fatalf("LoadCSVFile failed for %s: %v", path, err)
 	}
 

@@ -8,58 +8,23 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 )
 
-func LoadCSVFile(filename string, collector *Collector, filetype string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", filename, err)
-	}
-	defer file.Close()
-
-	reader, err := getReaderFromFile(file)
-	if err != nil {
-		return fmt.Errorf("failed to read CSV: %w", err)
-	}
-
-	err = LoadCSVFromReader(reader, collector, filetype)
-	if err != nil {
-		return fmt.Errorf("failed to parse CSV: %w", err)
-	}
-
-	return nil
-}
-
-// Get a reader from a file. If the file is gzipped, it will return a gzip reader.
-// This code is borrowed from the gopacket library (pcapgo).
-func getReaderFromFile(file *os.File) (io.Reader, error) {
-	// Check if the file is gzipped by reading the first two bytes.
-	br := bufio.NewReader(file)
-	gzipMagic, err := br.Peek(2)
-	if err != nil {
-		return nil, err
-	}
-
-	const magicGzip1 = 0x1f
-	const magicGzip2 = 0x8b
-
-	if gzipMagic[0] == magicGzip1 && gzipMagic[1] == magicGzip2 {
-		return gzip.NewReader(br)
-	}
-	return br, nil
-}
-
 func LoadCSVFromReader(reader io.Reader, collector *Collector, filetype string) error {
+	reader1, err := getReader(reader)
+	if err != nil {
+		return fmt.Errorf("failed to get reader: %w", err)
+	}
+
 	// choose delimiter: if filetype == "tsv" force tab, otherwise use configured csvDelimiter
 	delimiter := ','
 	if filetype == "tsv" {
 		delimiter = '\t'
 	}
 
-	csvReader := csv.NewReader(reader)
+	csvReader := csv.NewReader(reader1)
 	csvReader.Comment = '#'
 	csvReader.TrimLeadingSpace = true
 	csvReader.FieldsPerRecord = -1 // allow either 2 or 3 fields per record
@@ -83,6 +48,25 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector, filetype string) 
 	}
 
 	return nil
+}
+
+// Get a reader from a file. If the file is gzipped, it will return a gzip reader.
+// This code is borrowed from the gopacket library (pcapgo).
+func getReader(reader io.Reader) (io.Reader, error) {
+	// Check if the file is gzipped by reading the first two bytes.
+	br := bufio.NewReader(reader)
+	gzipMagic, err := br.Peek(2)
+	if err != nil {
+		return nil, err
+	}
+
+	const magicGzip1 = 0x1f
+	const magicGzip2 = 0x8b
+
+	if gzipMagic[0] == magicGzip1 && gzipMagic[1] == magicGzip2 {
+		return gzip.NewReader(br)
+	}
+	return br, nil
 }
 
 // processCSVRecord processes a single CSV record

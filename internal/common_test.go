@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"io"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -141,4 +143,15 @@ func loadDatasetFromCSV(csvData string, dateStr string, verbose bool) (*Collecto
 	timing.Finish()
 
 	return collector, nil
+}
+
+func readerFromFile(t *testing.T, path string) io.Reader {
+	t.Helper()
+
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("failed to open %s: %v", path, err)
+	}
+
+	return f
 }

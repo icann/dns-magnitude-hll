@@ -4,27 +4,21 @@ package internal
 
 import (
 	"fmt"
+	"io"
 	"net/netip"
-	"os"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
 )
 
-func LoadPcap(filename string, collector *Collector) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", filename, err)
-	}
-	defer file.Close()
-
-	reader, err := pcapgo.NewReader(file)
+func LoadPcap(reader io.Reader, collector *Collector) error {
+	pcapReader, err := pcapgo.NewReader(reader)
 	if err != nil {
 		return fmt.Errorf("failed to create pcap reader: %w", err)
 	}
 
-	err = processPackets(reader, collector)
+	err = processPackets(pcapReader, collector)
 	if err != nil {
 		return fmt.Errorf("failed to process packets: %w", err)
 	}
