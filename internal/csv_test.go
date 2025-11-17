@@ -211,7 +211,7 @@ func TestProcessCSVRecord_ErrorCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			timing := NewTimingStats()
 			collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
-			err := processCSVRecord(collector, tt.record)
+			err := processCSVRecord(collector, tt.record, false)
 
 			dataset := collector.Result
 			if dataset.AllQueriesCount != 0 {
@@ -485,5 +485,28 @@ func TestLoadCSVFile_TSV_Strange_data(t *testing.T) {
 		domainCount:    0,
 		invalidDomains: 10,
 		invalidRecords: 0,
+	}, collector)
+}
+
+func TestLoadCSVFromReader_TestFirstLineIsHeader(t *testing.T) {
+	csvData := "ip\tdomain\tqueries\n192.168.1.1\tcom\t5\n"
+
+	reader := strings.NewReader(csvData)
+
+	timing := NewTimingStats()
+	collector := NewCollector(DefaultDomainCount, 100000, false, nil, timing)
+	err := LoadCSVFromReader(reader, collector, "tsv")
+	if err != nil {
+		t.Fatalf("LoadCSVFromReader failed: %v", err)
+	}
+
+	collector.Finalise()
+
+	validateDataset(t, collector.Result, DatasetExpected{
+		queriesCount:    5,
+		domainCount:     1,
+		expectedDomains: []string{"com"},
+		invalidDomains:  0,
+		invalidRecords:  0,
 	}, collector)
 }
