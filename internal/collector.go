@@ -96,13 +96,13 @@ func (c *Collector) Finalise() error {
 }
 
 // ProcessFiles processes multiple input files into collector.Result
-func (c *Collector) ProcessFiles(files []string, filetype string, stdin io.Reader) error {
+func (c *Collector) ProcessFiles(files []string, filetype string, stdin io.Reader, stderr io.Writer) error {
 	c.timing.StartParsing()
 
 	// Process each input file
 	for _, inputFile := range files {
 		if c.verbose {
-			fmt.Printf("Loading %s file: %s\n", filetype, inputFile)
+			fmt.Fprintf(stderr, "Loading %s file: %s\n", filetype, inputFile)
 		}
 
 		var err error

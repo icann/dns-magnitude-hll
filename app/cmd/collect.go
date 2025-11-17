@@ -75,7 +75,7 @@ Save them to a DNSMAG file (CBOR format).`,
 				chunkSize = uint(chunk) * 1000 * 1000
 			}
 			collector := internal.NewCollector(topCount, chunkSize, verbose, date, timing)
-			err := collector.ProcessFiles(args, filetype, stdin)
+			err := collector.ProcessFiles(args, filetype, stdin, stderr)
 			if err != nil {
 				cmd.SilenceUsage = true
 				return fmt.Errorf("failed to process files: %w", err)
