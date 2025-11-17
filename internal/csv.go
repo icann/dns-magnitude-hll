@@ -18,7 +18,7 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector, filetype string) 
 		return fmt.Errorf("failed to get reader: %w", err)
 	}
 
-	// choose delimiter: if filetype == "tsv" force tab, otherwise use configured csvDelimiter
+	// choose delimiter: if filetype == "tsv" use tab, otherwise default to comma
 	delimiter := ','
 	if filetype == "tsv" {
 		delimiter = '\t'
@@ -31,6 +31,8 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector, filetype string) 
 	csvReader.Comma = delimiter    // use configured or overridden delimiter
 	csvReader.LazyQuotes = true    // be forgiving with quotes
 
+	firstLine := true
+
 	for {
 		record, err := csvReader.Read()
 		if err == io.EOF {
@@ -41,10 +43,11 @@ func LoadCSVFromReader(reader io.Reader, collector *Collector, filetype string) 
 			continue
 		}
 
-		if err := processCSVRecord(collector, record); err != nil {
+		if err := processCSVRecord(collector, record, firstLine); err != nil {
 			line, _ := csvReader.FieldPos(0)
 			return fmt.Errorf("failed to process CSV record at line %d: %w", line, err)
 		}
+		firstLine = false
 	}
 
 	return nil
@@ -70,7 +73,7 @@ func getReader(reader io.Reader) (io.Reader, error) {
 }
 
 // processCSVRecord processes a single CSV record
-func processCSVRecord(collector *Collector, record []string) error {
+func processCSVRecord(collector *Collector, record []string, firstLine bool) error {
 	if len(record) < 2 {
 		return fmt.Errorf("CSV record must have at least two fields (client, domain), got %d", len(record))
 	}
@@ -86,6 +89,11 @@ func processCSVRecord(collector *Collector, record []string) error {
 	if len(record) >= 3 && strings.TrimSpace(record[2]) != "" {
 		parsed, err := strconv.Atoi(strings.TrimSpace(record[2]))
 		if err != nil {
+			if firstLine {
+				// Special case: if the first line has an invalid client IP,
+				// it might be a header row. Skip it silently.
+				return nil
+			}
 			return fmt.Errorf("invalid queries_count '%s': %w", record[2], err)
 		}
 		if parsed == 0 {
@@ -99,6 +107,11 @@ func processCSVRecord(collector *Collector, record []string) error {
 
 	clientIP, err := NewIPAddressFromString(clientStr)
 	if err != nil {
+		if firstLine {
+			// Special case: if the first line has an invalid client IP,
+			// it might be a header row. Skip it silently.
+			return nil
+		}
 		return fmt.Errorf("invalid client IP address: %w", err)
 	}
 
