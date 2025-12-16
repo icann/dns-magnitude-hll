@@ -3,6 +3,7 @@
 package internal
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -188,6 +189,37 @@ func OutputDatasetStats(w io.Writer, dataset MagnitudeDataset, verbose bool) err
 	}
 
 	return printTable(w, table)
+}
+
+// DatasetStatsJSON represents the JSON output format for dataset statistics
+type DatasetStatsJSON struct {
+	ID                 string `json:"id"`
+	Generator          string `json:"generator"`
+	Date               string `json:"date"`
+	TotalUniqueClients uint64 `json:"totalUniqueClients"`
+	TotalQueryVolume   uint64 `json:"totalQueryVolume"`
+	TotalDomainCount   uint64 `json:"totalDomainCount"`
+}
+
+// OutputDatasetStatsJSON formats and prints dataset statistics as JSON
+func OutputDatasetStatsJSON(w io.Writer, dataset MagnitudeDataset) error {
+	dateStr := ""
+	if dataset.Date != nil {
+		dateStr = dataset.Date.Format("2006-01-02")
+	}
+
+	stats := DatasetStatsJSON{
+		ID:                 dataset.Identifier,
+		Generator:          dataset.Generator,
+		Date:               dateStr,
+		TotalUniqueClients: dataset.AllClientsCount,
+		TotalQueryVolume:   dataset.AllQueriesCount,
+		TotalDomainCount:   uint64(len(dataset.Domains)),
+	}
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(stats)
 }
 
 // OutputCollectorStats formats and prints both dataset and timing statistics for collection operations

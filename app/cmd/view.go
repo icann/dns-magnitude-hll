@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"dnsmag/internal"
+	"fmt"
 
 	"github.com/spf13/cobra"
 )
@@ -21,13 +22,19 @@ func newViewCmd() *cobra.Command {
 
 			var (
 				verbose bool
+				json    bool
 				top     int
 			)
 
 			parseFlags(cmd, map[string]any{
 				"verbose": &verbose,
+				"json":    &json,
 				"top":     &top,
 			})
+
+			if verbose && json {
+				return fmt.Errorf("--verbose and --json are mutually exclusive")
+			}
 
 			seq := internal.NewDatasetSequence(top, nil)
 
@@ -37,9 +44,17 @@ func newViewCmd() *cobra.Command {
 			}
 
 			// Format and print the domain statistics
-			if err := internal.OutputDatasetStats(stderr, seq.Result, verbose); err != nil {
-				cmd.SilenceUsage = true
-				return err
+			if json {
+				stdout := cmd.OutOrStdout()
+				if err := internal.OutputDatasetStatsJSON(stdout, seq.Result); err != nil {
+					cmd.SilenceUsage = true
+					return err
+				}
+			} else {
+				if err := internal.OutputDatasetStats(stderr, seq.Result, verbose); err != nil {
+					cmd.SilenceUsage = true
+					return err
+				}
 			}
 
 			return nil
@@ -47,6 +62,7 @@ func newViewCmd() *cobra.Command {
 	}
 
 	viewCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+	viewCmd.Flags().BoolP("json", "j", false, "JSON output")
 	viewCmd.Flags().IntP("top", "n", internal.DefaultDomainCount, "Number of top domains to display")
 
 	return viewCmd
