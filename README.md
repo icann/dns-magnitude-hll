@@ -21,7 +21,7 @@ Input data is read from files specified on the command line.
 
 Unique clients will be collected all queries where the rightmost DNS label is a possible top-level domain. This corresponds to the following regular expression:
 
-    ^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$
+    ^[a-z][a-z0-9-]*[a-z0-9]$
 
 #### Example Usage
 
