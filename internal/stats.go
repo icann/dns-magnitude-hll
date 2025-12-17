@@ -191,14 +191,19 @@ func OutputDatasetStats(w io.Writer, dataset MagnitudeDataset, verbose bool) err
 	return printTable(w, table)
 }
 
-// DatasetStatsJSON represents the JSON output format for dataset statistics
-type DatasetStatsJSON struct {
+// DatasetStats represents the nested dataset statistics
+type DatasetStats struct {
 	ID                 string `json:"id"`
 	Generator          string `json:"generator"`
 	Date               string `json:"date"`
 	TotalUniqueClients uint64 `json:"totalUniqueClients"`
 	TotalQueryVolume   uint64 `json:"totalQueryVolume"`
 	TotalDomainCount   uint64 `json:"totalDomainCount"`
+}
+
+// DatasetStatsJSON represents the JSON output format for dataset statistics
+type DatasetStatsJSON struct {
+	DatasetStatistics DatasetStats `json:"datasetStatistics"`
 }
 
 // OutputDatasetStatsJSON formats and prints dataset statistics as JSON
@@ -209,12 +214,14 @@ func OutputDatasetStatsJSON(w io.Writer, dataset MagnitudeDataset) error {
 	}
 
 	stats := DatasetStatsJSON{
-		ID:                 dataset.Identifier,
-		Generator:          dataset.Generator,
-		Date:               dateStr,
-		TotalUniqueClients: dataset.AllClientsCount,
-		TotalQueryVolume:   dataset.AllQueriesCount,
-		TotalDomainCount:   uint64(len(dataset.Domains)),
+		DatasetStatistics: DatasetStats{
+			ID:                 dataset.Identifier,
+			Generator:          dataset.Generator,
+			Date:               dateStr,
+			TotalUniqueClients: dataset.AllClientsCount,
+			TotalQueryVolume:   dataset.AllQueriesCount,
+			TotalDomainCount:   uint64(len(dataset.Domains)),
+		},
 	}
 
 	encoder := json.NewEncoder(w)

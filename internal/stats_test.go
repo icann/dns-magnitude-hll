@@ -173,45 +173,33 @@ func TestOutputDatasetStatsJSON(t *testing.T) {
 		t.Fatalf("OutputDatasetStatsJSON failed: %v", err)
 	}
 
-	output := buf.String()
-
-	// Check for expected JSON fields
-	expectedFields := []string{
-		`"id"`,
-		`"generator"`,
-		`"date": "2009-12-21"`,
-		`"totalUniqueClients": 4`,
-		`"totalQueryVolume": 11`,
-		`"totalDomainCount": 3`,
-	}
-
-	for _, expected := range expectedFields {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected JSON output to contain '%s', but it didn't.\nOutput:\n%s", expected, output)
-		}
-	}
-
-	// Verify it's valid JSON by unmarshaling
+	// Parse JSON output
 	var stats DatasetStatsJSON
 	if err := json.Unmarshal(buf.Bytes(), &stats); err != nil {
 		t.Fatalf("Failed to unmarshal JSON output: %v", err)
 	}
 
-	// Verify values
-	if stats.Date != "2009-12-21" {
-		t.Errorf("Expected date '2009-12-21', got '%s'", stats.Date)
-	}
-	if stats.TotalUniqueClients != 4 {
-		t.Errorf("Expected totalUniqueClients 4, got %d", stats.TotalUniqueClients)
-	}
-	if stats.TotalQueryVolume != 11 {
-		t.Errorf("Expected totalQueryVolume 11, got %d", stats.TotalQueryVolume)
-	}
-	if stats.TotalDomainCount != 3 {
-		t.Errorf("Expected totalDomainCount 3, got %d", stats.TotalDomainCount)
-	}
-	if stats.ID == "" {
+	// Verify random fields are non-empty before overwriting
+	if stats.DatasetStatistics.ID == "" {
 		t.Error("Expected non-empty ID")
+	}
+
+	// Overwrite random ID field for comparison
+	stats.DatasetStatistics.ID = ""
+
+	expected := DatasetStatsJSON{
+		DatasetStatistics: DatasetStats{
+			ID:                 "",
+			Generator:          fmt.Sprintf("dnsmag %s", Version),
+			Date:               "2009-12-21",
+			TotalUniqueClients: 4,
+			TotalQueryVolume:   11,
+			TotalDomainCount:   3,
+		},
+	}
+
+	if stats != expected {
+		t.Errorf("JSON output mismatch.\nGot:      %+v\nExpected: %+v", stats, expected)
 	}
 }
 
