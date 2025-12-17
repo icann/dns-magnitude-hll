@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -140,6 +141,65 @@ func TestOutputDatasetStats(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestOutputDatasetStatsJSON(t *testing.T) {
+	// Initialize test dataset using CSV data
+	csvData := `# Test CSV data
+192.168.1.10,example.com,5
+192.168.1.20,example.org,3
+10.0.0.5,example.com,2
+2001:db8::1,example.net,1`
+
+	collector, err := loadDatasetFromCSV(csvData, "2009-12-21", false)
+	if err != nil {
+		t.Fatalf("loadDatasetFromCSV failed: %v", err)
+	}
+	dataset := collector.Result
+
+	// Validate the dataset before testing output
+	validateDataset(t, dataset, DatasetExpected{
+		queriesCount:    11,
+		domainCount:     3,
+		expectedDomains: []string{"com", "org", "net"},
+		invalidDomains:  0,
+		invalidRecords:  0,
+	}, collector)
+
+	var buf bytes.Buffer
+	err = OutputDatasetStatsJSON(&buf, dataset)
+	if err != nil {
+		t.Fatalf("OutputDatasetStatsJSON failed: %v", err)
+	}
+
+	// Parse JSON output
+	var stats DatasetStatsJSON
+	if err := json.Unmarshal(buf.Bytes(), &stats); err != nil {
+		t.Fatalf("Failed to unmarshal JSON output: %v", err)
+	}
+
+	// Verify random fields are non-empty before overwriting
+	if stats.DatasetStatistics.ID == "" {
+		t.Error("Expected non-empty ID")
+	}
+
+	// Overwrite random ID field for comparison
+	stats.DatasetStatistics.ID = ""
+
+	expected := DatasetStatsJSON{
+		DatasetStatistics: DatasetStats{
+			ID:                 "",
+			Generator:          fmt.Sprintf("dnsmag %s", Version),
+			Date:               "2009-12-21",
+			TotalUniqueClients: 4,
+			TotalQueryVolume:   11,
+			TotalDomainCount:   3,
+		},
+	}
+
+	if stats != expected {
+		t.Errorf("JSON output mismatch.\nGot:      %+v\nExpected: %+v", stats, expected)
 	}
 }
 

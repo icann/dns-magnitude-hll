@@ -2,8 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"dnsmag/internal"
+	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -60,6 +64,194 @@ func TestViewCmd_Integration(t *testing.T) {
 	}
 
 	t.Logf("View command output:\n%s", output)
+}
+
+func TestViewCmd_JSON(t *testing.T) {
+	// Create temporary DNSMAG file
+	tmpDnsmag, err := os.CreateTemp("", "test_view_json_*.dnsmag")
+	if err != nil {
+		t.Fatalf("Failed to create temp DNSMAG file: %v", err)
+	}
+	defer os.Remove(tmpDnsmag.Name())
+	tmpDnsmag.Close()
+
+	// Collect data into temporary DNSMAG file
+	executeCollectAndVerify(t, []string{
+		"../../testdata/test1.pcap.gz",
+		"--output", tmpDnsmag.Name(),
+	}, 100, "PCAP")
+
+	// View the data with JSON output
+	viewCmd := newViewCmd()
+	viewCmd.SetArgs([]string{
+		tmpDnsmag.Name(),
+		"--json",
+	})
+
+	var viewBuf bytes.Buffer
+	viewCmd.SetOut(&viewBuf)
+	viewCmd.SetErr(&viewBuf)
+
+	err = viewCmd.Execute()
+	if err != nil {
+		t.Fatalf("View command with --json failed: %v\nOutput: %s", err, viewBuf.String())
+	}
+
+	output := viewBuf.String()
+
+	// Parse JSON output
+	var stats internal.DatasetStatsJSON
+	if err := json.Unmarshal(viewBuf.Bytes(), &stats); err != nil {
+		t.Fatalf("Failed to parse JSON output: %v\nOutput: %s", err, output)
+	}
+
+	// Verify ID is non-empty before overwriting
+	if stats.DatasetStatistics.ID == "" {
+		t.Error("Expected non-empty ID")
+	}
+
+	// Overwrite random ID field for comparison
+	stats.DatasetStatistics.ID = ""
+
+	expected := internal.DatasetStatsJSON{
+		DatasetStatistics: internal.DatasetStats{
+			ID:                 "",
+			Generator:          fmt.Sprintf("dnsmag %s", internal.Version),
+			Date:               "2000-01-01",
+			TotalUniqueClients: 70,
+			TotalQueryVolume:   100,
+			TotalDomainCount:   4,
+		},
+	}
+
+	if stats != expected {
+		t.Errorf("JSON output mismatch.\nGot:      %+v\nExpected: %+v", stats, expected)
+	}
+
+	t.Logf("View --json output:\n%s", output)
+}
+
+func TestViewCmd_OutputDestination(t *testing.T) {
+	// Create temporary DNSMAG file
+	tmpDnsmag, err := os.CreateTemp("", "test_view_output_*.dnsmag")
+	if err != nil {
+		t.Fatalf("Failed to create temp DNSMAG file: %v", err)
+	}
+	defer os.Remove(tmpDnsmag.Name())
+	tmpDnsmag.Close()
+
+	// Collect data into temporary DNSMAG file
+	executeCollectAndVerify(t, []string{
+		"../../testdata/test1.pcap.gz",
+		"--output", tmpDnsmag.Name(),
+	}, 100, "PCAP")
+
+	tests := []struct {
+		name         string
+		outputFlag   string
+		jsonFlag     bool
+		expectIn     string // "stdout", "stderr", or "file"
+		searchString string
+	}{
+		{
+			name:         "text output to stderr (default)",
+			outputFlag:   "",
+			jsonFlag:     false,
+			expectIn:     "stderr",
+			searchString: "Dataset statistics",
+		},
+		{
+			name:         "text output to file",
+			outputFlag:   "output.txt",
+			jsonFlag:     false,
+			expectIn:     "file",
+			searchString: "Dataset statistics",
+		},
+		{
+			name:         "text output to stdout",
+			outputFlag:   "-",
+			jsonFlag:     false,
+			expectIn:     "stdout",
+			searchString: "Dataset statistics",
+		},
+		{
+			name:         "JSON output to stderr (default)",
+			outputFlag:   "",
+			jsonFlag:     true,
+			expectIn:     "stderr",
+			searchString: "datasetStatistics",
+		},
+		{
+			name:         "JSON output to file",
+			outputFlag:   "output.json",
+			jsonFlag:     true,
+			expectIn:     "file",
+			searchString: "datasetStatistics",
+		},
+		{
+			name:         "JSON output to stdout",
+			outputFlag:   "-",
+			jsonFlag:     true,
+			expectIn:     "stdout",
+			searchString: "datasetStatistics",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			viewCmd := newViewCmd()
+			args := []string{tmpDnsmag.Name()}
+			if tt.jsonFlag {
+				args = append(args, "--json")
+			}
+
+			var outputPath string
+			if tt.outputFlag != "" {
+				if tt.expectIn == "file" {
+					tmpFile, err := os.CreateTemp("", tt.outputFlag)
+					if err != nil {
+						t.Fatalf("Failed to create temp file: %v", err)
+					}
+					outputPath = tmpFile.Name()
+					tmpFile.Close()
+					defer os.Remove(outputPath)
+					args = append(args, "--output", outputPath)
+				} else {
+					args = append(args, "--output", tt.outputFlag)
+				}
+			}
+			viewCmd.SetArgs(args)
+
+			var stdout, stderr bytes.Buffer
+			viewCmd.SetOut(&stdout)
+			viewCmd.SetErr(&stderr)
+
+			err := viewCmd.Execute()
+			if err != nil {
+				t.Fatalf("View command failed: %v\nStdout: %s\nStderr: %s", err, stdout.String(), stderr.String())
+			}
+
+			// Check output appears in expected location
+			switch tt.expectIn {
+			case "stdout":
+				if !strings.Contains(stdout.String(), tt.searchString) {
+					t.Errorf("Expected %q in stdout", tt.searchString)
+				}
+			case "stderr":
+				if !strings.Contains(stderr.String(), tt.searchString) {
+					t.Errorf("Expected %q in stderr", tt.searchString)
+				}
+			case "file":
+				fileContent, err := os.ReadFile(outputPath)
+				if err != nil {
+					t.Fatalf("Failed to read output file: %v", err)
+				}
+				if !strings.Contains(string(fileContent), tt.searchString) {
+					t.Errorf("Expected %q in file", tt.searchString)
+				}
+			}
+		})
+	}
 }
 
 func TestViewCmd_NonExistentFile(t *testing.T) {
