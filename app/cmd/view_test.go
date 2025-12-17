@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"dnsmag/internal"
+	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"testing"
@@ -60,6 +63,71 @@ func TestViewCmd_Integration(t *testing.T) {
 	}
 
 	t.Logf("View command output:\n%s", output)
+}
+
+func TestViewCmd_JSON(t *testing.T) {
+	// Create temporary DNSMAG file
+	tmpDnsmag, err := os.CreateTemp("", "test_view_json_*.dnsmag")
+	if err != nil {
+		t.Fatalf("Failed to create temp DNSMAG file: %v", err)
+	}
+	defer os.Remove(tmpDnsmag.Name())
+	tmpDnsmag.Close()
+
+	// Collect data into temporary DNSMAG file
+	executeCollectAndVerify(t, []string{
+		"../../testdata/test1.pcap.gz",
+		"--output", tmpDnsmag.Name(),
+	}, 100, "PCAP")
+
+	// View the data with JSON output
+	viewCmd := newViewCmd()
+	viewCmd.SetArgs([]string{
+		tmpDnsmag.Name(),
+		"--json",
+	})
+
+	var viewBuf bytes.Buffer
+	viewCmd.SetOut(&viewBuf)
+	viewCmd.SetErr(&viewBuf)
+
+	err = viewCmd.Execute()
+	if err != nil {
+		t.Fatalf("View command with --json failed: %v\nOutput: %s", err, viewBuf.String())
+	}
+
+	output := viewBuf.String()
+
+	// Parse JSON output
+	var stats internal.DatasetStatsJSON
+	if err := json.Unmarshal(viewBuf.Bytes(), &stats); err != nil {
+		t.Fatalf("Failed to parse JSON output: %v\nOutput: %s", err, output)
+	}
+
+	// Verify ID is non-empty before overwriting
+	if stats.DatasetStatistics.ID == "" {
+		t.Error("Expected non-empty ID")
+	}
+
+	// Overwrite random ID field for comparison
+	stats.DatasetStatistics.ID = ""
+
+	expected := internal.DatasetStatsJSON{
+		DatasetStatistics: internal.DatasetStats{
+			ID:                 "",
+			Generator:          fmt.Sprintf("dnsmag %s", internal.Version),
+			Date:               "2000-01-01",
+			TotalUniqueClients: 70,
+			TotalQueryVolume:   100,
+			TotalDomainCount:   4,
+		},
+	}
+
+	if stats != expected {
+		t.Errorf("JSON output mismatch.\nGot:      %+v\nExpected: %+v", stats, expected)
+	}
+
+	t.Logf("View --json output:\n%s", output)
 }
 
 func TestViewCmd_NonExistentFile(t *testing.T) {
