@@ -5,6 +5,7 @@ package cmd
 import (
 	"dnsmag/internal"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -22,17 +23,19 @@ func newAggregateCmd() *cobra.Command {
 			timing := internal.NewTimingStats()
 
 			var (
-				top     int
-				verbose bool
-				quiet   bool
-				output  string
+				top       int
+				verbose   bool
+				quiet     bool
+				output    string
+				forceDate string
 			)
 
 			parseFlags(cmd, map[string]any{
-				"top":     &top,
-				"verbose": &verbose,
-				"quiet":   &quiet,
-				"output":  &output,
+				"top":        &top,
+				"verbose":    &verbose,
+				"quiet":      &quiet,
+				"output":     &output,
+				"force-date": &forceDate,
 			})
 
 			// Quiet and verbose flags are mutually exclusive
@@ -41,7 +44,17 @@ func newAggregateCmd() *cobra.Command {
 				return fmt.Errorf("conflicting flags: cannot use both --quiet and --verbose")
 			}
 
-			seq := internal.NewDatasetSequence(top, nil)
+			var forcedDate *time.Time
+			if forceDate != "" {
+				parsedDate, err := time.Parse("2006-01-02", forceDate)
+				if err != nil {
+					cmd.SilenceUsage = true
+					return fmt.Errorf("invalid date format for --force-date: %s (expected YYYY-MM-DD)", forceDate)
+				}
+				forcedDate = &parsedDate
+			}
+
+			seq := internal.NewDatasetSequence(top, forcedDate, forcedDate != nil, stderr)
 
 			// Load all provided DNSMAG files
 			err := loadDatasets(cmd, seq, args, verbose)
@@ -102,6 +115,7 @@ func newAggregateCmd() *cobra.Command {
 	aggregateCmd.Flags().IntP("top", "n", internal.DefaultDomainCount, "Minimum number of domains required in each dataset")
 	aggregateCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
 	aggregateCmd.Flags().BoolP("quiet", "q", false, "Quiet mode")
+	aggregateCmd.Flags().String("force-date", "", "Force a specific date for the aggregated dataset (YYYY-MM-DD format)")
 
 	return aggregateCmd
 }

@@ -91,13 +91,17 @@ type DatasetSequence struct {
 	numDomains int
 	Count      int
 	Result     MagnitudeDataset
+	forceDate  bool
+	logger     io.Writer
 }
 
-func NewDatasetSequence(numDomains int, date *time.Time) *DatasetSequence {
+func NewDatasetSequence(numDomains int, date *time.Time, forceDate bool, logger io.Writer) *DatasetSequence {
 	return &DatasetSequence{
 		numDomains: numDomains,
 		Count:      0,
 		Result:     newDataset(date),
+		forceDate:  forceDate,
+		logger:     logger,
 	}
 }
 
@@ -168,6 +172,17 @@ func (seq *DatasetSequence) LoadDNSMagSequenceFromReader(reader io.Reader, filen
 }
 
 func (seq *DatasetSequence) addDataset(dataset MagnitudeDataset) error {
+	// If forceDate is true and the dataset has a different date, log a warning and override it
+	if seq.forceDate && dataset.Date != nil && seq.Result.Date != nil {
+		if dataset.DateString() != seq.Result.DateString() {
+			if seq.logger != nil {
+				fmt.Fprintf(seq.logger, "Warning: Overriding date %s with forced date %s for dataset %s\n",
+					dataset.DateString(), seq.Result.DateString(), dataset.extraSourceFilename)
+			}
+			dataset.SetDate(&seq.Result.Date.Time)
+		}
+	}
+
 	if seq.Count == 0 {
 		seq.Result = dataset
 		seq.Count = 1

@@ -13,7 +13,7 @@ import (
 func newCollectCmd() *cobra.Command {
 	collectCmd := &cobra.Command{
 		Use:   "collect <input-file> [input-file2] [input-file3...]",
-		Short: "Parse PCAP files and generate domain statistics",
+		Short: "Parse PCAP or CSV files and generate domain statistics",
 		Long: `Parse one or more PCAP files containing DNS traffic and generate domain statistics.
 Save them to a DNSMAG file (CBOR format).`,
 		Args: cobra.MinimumNArgs(1),
