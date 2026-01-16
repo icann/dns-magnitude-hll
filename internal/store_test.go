@@ -46,7 +46,7 @@ func TestWriteAndLoadDNSMagFile_WriteLoadCycle(t *testing.T) {
 	}
 
 	// Test loading
-	seq := NewDatasetSequence(0, nil)
+	seq := NewDatasetSequence(0, nil, false, nil)
 	err = seq.LoadDNSMagFile(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("LoadDNSMagFile failed: %v", err)
@@ -90,7 +90,7 @@ func TestWriteDNSMagFile_CreateError(t *testing.T) {
 }
 
 func TestLoadDNSMagFile_FileNotFound(t *testing.T) {
-	seq := NewDatasetSequence(0, nil)
+	seq := NewDatasetSequence(0, nil, false, nil)
 	err := seq.LoadDNSMagFile("non-existent.dnsmag")
 	if err == nil {
 		t.Error("Expected error when loading non-existent file, got nil")
@@ -111,7 +111,7 @@ func TestLoadDNSMagFile_InvalidFormat(t *testing.T) {
 	}
 	tmpFile.Close()
 
-	seq := NewDatasetSequence(0, nil)
+	seq := NewDatasetSequence(0, nil, false, nil)
 	err = seq.LoadDNSMagFile(tmpFile.Name())
 	if err == nil {
 		t.Error("Expected error when loading invalid CBOR file, got nil")
@@ -262,7 +262,7 @@ func TestWriteAndLoadDNSMagSequence_MultiDataset(t *testing.T) {
 	tmpFile.Close()
 
 	// Load the two datasets from the single file
-	seq := NewDatasetSequence(100, &dataset1.Date.Time)
+	seq := NewDatasetSequence(100, &dataset1.Date.Time, false, nil)
 	err = seq.LoadDNSMagSequenceFromReaderFile(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("LoadDNSMagSequenceFromReaderFile failed: %v", err)
@@ -318,7 +318,7 @@ func TestLoadDNSMagSequenceFromReader_ExtraBytes(t *testing.T) {
 	extra := []byte("EXTRA BYTES")
 	input := append(cborData, extra...)
 
-	seq := NewDatasetSequence(100, &dataset.Date.Time)
+	seq := NewDatasetSequence(100, &dataset.Date.Time, false, nil)
 	err = seq.LoadDNSMagSequenceFromReader(
 		bytes.NewReader(input),
 		"testfile#%d",
@@ -347,7 +347,7 @@ func TestLoadDNSMagSequenceFromReader_IncompleteCBOR(t *testing.T) {
 	// Truncate the CBOR data to simulate incomplete input
 	truncated := cborData[:len(cborData)-1]
 
-	seq := NewDatasetSequence(100, &dataset.Date.Time)
+	seq := NewDatasetSequence(100, &dataset.Date.Time, false, nil)
 	err = seq.LoadDNSMagSequenceFromReader(
 		bytes.NewReader(truncated),
 		"testfile#%d",

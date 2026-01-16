@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"dnsmag/internal"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -71,4 +72,31 @@ func loadDatasetFromCSV(csvData string, dateStr string, verbose bool) (*internal
 	timing.Finish()
 
 	return collector, nil
+}
+
+// createDNSMAGFromCSV creates a temporary DNSMAG file with the specified date and CSV data
+// Returns the file path. Caller is responsible for deleting the file.
+func createDNSMAGFromCSV(t *testing.T, csvData, date string) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", "test_*.dnsmag")
+	if err != nil {
+		t.Fatalf("Failed to create temp DNSMAG file: %v", err)
+	}
+	filePath := tmpFile.Name()
+	tmpFile.Close()
+
+	collector, err := loadDatasetFromCSV(csvData, date, false)
+	if err != nil {
+		os.Remove(filePath)
+		t.Fatalf("Failed to load CSV dataset: %v", err)
+	}
+
+	_, err = internal.WriteDNSMagFile(collector.Result, filePath, os.Stdout)
+	if err != nil {
+		os.Remove(filePath)
+		t.Fatalf("Failed to write DNSMAG file: %v", err)
+	}
+
+	return filePath
 }

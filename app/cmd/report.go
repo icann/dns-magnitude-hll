@@ -47,7 +47,7 @@ func newReportCmd() *cobra.Command {
 				"verbose":     &verbose,
 			})
 
-			seq := internal.NewDatasetSequence(0, nil)
+			seq := internal.NewDatasetSequence(0, nil, false, stderr)
 
 			if err := loadDatasets(cmd, seq, []string{filename}, verbose); err != nil {
 				cmd.SilenceUsage = true

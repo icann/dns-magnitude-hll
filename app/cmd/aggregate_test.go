@@ -209,3 +209,89 @@ func (sr *slowReader) Read(out []byte) (n int, err error) {
 
 	return numBytes, nil
 }
+
+func TestAggregateCmd_DifferentDates_WithoutForceDate(t *testing.T) {
+	file1, file2, cleanup := createDNSMagFilesWithDifferentDates(t, "2024-04-04", "2025-05-05")
+	defer cleanup()
+
+	// Try to aggregate the two DNSMAG files without --force-date
+	aggregateCmd := newAggregateCmd()
+	aggregateCmd.SetArgs([]string{
+		file1,
+		file2,
+	})
+
+	var aggregateBuf bytes.Buffer
+	aggregateCmd.SetOut(&aggregateBuf)
+	aggregateCmd.SetErr(&aggregateBuf)
+
+	err := aggregateCmd.Execute()
+	if err == nil {
+		t.Fatalf("Expected error when aggregating datasets with different dates, but got none. Output: %s", aggregateBuf.String())
+	}
+
+	// Verify the error message mentions date mismatch
+	output := aggregateBuf.String()
+	if !regexp.MustCompile(`date mismatch`).MatchString(err.Error()) {
+		t.Errorf("Expected 'date mismatch' error, got: %v\nOutput: %s", err, output)
+	}
+
+	t.Logf("Expected error occurred: %v", err)
+}
+
+func TestAggregateCmd_DifferentDates_WithForceDate(t *testing.T) {
+	file1, file2, cleanup := createDNSMagFilesWithDifferentDates(t, "2024-04-04", "2025-05-05")
+	defer cleanup()
+
+	// Aggregate the two DNSMAG files WITH --force-date
+	aggregateCmd := newAggregateCmd()
+	aggregateCmd.SetArgs([]string{
+		"--force-date", "2026-01-14",
+		file1,
+		file2,
+	})
+
+	var aggregateBuf bytes.Buffer
+	aggregateCmd.SetOut(&aggregateBuf)
+	aggregateCmd.SetErr(&aggregateBuf)
+
+	err := aggregateCmd.Execute()
+	if err != nil {
+		t.Fatalf("Aggregate command with --force-date failed: %v\nOutput: %s", err, aggregateBuf.String())
+	}
+
+	output := aggregateBuf.String()
+
+	// Verify the output contains expected patterns
+	expectedPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`Aggregated statistics for 2 datasets:`),
+		regexp.MustCompile(`Date\s+:\s+2026-01-14`),                                           // The forced date
+		regexp.MustCompile(`Total queries\s+:\s+40`),                                          // 25 + 15
+		regexp.MustCompile(`Total domains\s+:\s+2`),                                           // com, org
+		regexp.MustCompile(`Warning: Overriding date 2025-05-05 with forced date 2026-01-14`), // Warning message
+	}
+
+	for _, pattern := range expectedPatterns {
+		if !pattern.MatchString(output) {
+			t.Errorf("Expected pattern %q not found in output:\n%s", pattern.String(), output)
+		}
+	}
+
+	t.Logf("Aggregate command with --force-date output:\n%s", output)
+}
+
+// createDNSMagFilesWithDifferentDates creates two temporary DNSMAG files with different dates
+// Returns the two file paths and a cleanup function
+func createDNSMagFilesWithDifferentDates(t *testing.T, date1, date2 string) (string, string, func()) {
+	t.Helper()
+
+	file1 := createDNSMAGFromCSV(t, "192.168.1.1,example.com,25", date1)
+	file2 := createDNSMAGFromCSV(t, "10.0.1.1,example.org,15", date2)
+
+	cleanup := func() {
+		os.Remove(file1)
+		os.Remove(file2)
+	}
+
+	return file1, file2, cleanup
+}
