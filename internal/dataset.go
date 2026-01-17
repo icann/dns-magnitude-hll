@@ -95,13 +95,11 @@ func newDomain() domainData {
 }
 
 func (dataset *MagnitudeDataset) SetDate(date *time.Time) {
-	var dateOnly time.Time
-	if date != nil {
-		dateOnly = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
-	} else {
+	if date == nil {
 		now := time.Now().UTC()
-		dateOnly = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+		date = &now
 	}
+	var dateOnly = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	dataset.Date = &TimeWrapper{Time: dateOnly}
 }
 
