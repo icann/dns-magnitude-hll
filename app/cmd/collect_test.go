@@ -33,6 +33,21 @@ func TestCollect_JustCollect(t *testing.T) {
 				regexp.MustCompile(`Timing statistics`),
 			},
 		},
+		{
+			name: "pcap with date override",
+			args: []string{"../../testdata/test1.pcap.gz", "--date", "2025-12-31"},
+			expectedOutput: []*regexp.Regexp{
+				regexp.MustCompile(`Statistics for .*test1.pcap.gz:`),
+				regexp.MustCompile(`Dataset statistics`),
+				regexp.MustCompile(`Date\s+:\s+2025-12-31`),
+				regexp.MustCompile(`Total queries\s+:\s+100`),
+				regexp.MustCompile(`Total domains\s+:\s+4`),
+				regexp.MustCompile(`Collection statistics`),
+				regexp.MustCompile(`Files loaded\s+:\s+1`),
+				regexp.MustCompile(`Records processed\s+:\s+100`),
+				regexp.MustCompile(`Timing statistics`),
+			},
+		},
 	}
 
 	for _, tt := range tests {

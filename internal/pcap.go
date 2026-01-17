@@ -28,15 +28,17 @@ func LoadPcap(reader io.Reader, collector *Collector) error {
 
 // Count DNS domain queries per domain and unique source IPs
 func processPackets(reader *pcapgo.Reader, collector *Collector) error {
-	dateSet := false
+	firstPacket := true
 
 	packetSource := gopacket.NewPacketSource(reader, reader.LinkType())
 	for packet := range packetSource.Packets() {
-		if !dateSet {
-			// Set the dataset date from first packet's timestamp if no date was provided
-			packetTime := packet.Metadata().Timestamp
-			collector.SetDate(&packetTime)
-			dateSet = true
+		if firstPacket {
+			// Set the dataset date from first packet's timestamp if no date was set in the collector
+			if collector.dateProvided == nil {
+				packetTime := packet.Metadata().Timestamp
+				collector.SetDate(&packetTime)
+			}
+			firstPacket = false
 		}
 
 		if dnsLayer := packet.Layer(layers.LayerTypeDNS); dnsLayer != nil {
