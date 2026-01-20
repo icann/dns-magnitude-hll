@@ -22,6 +22,7 @@ type Collector struct {
 	invalidDomainCount uint             // Count of invalid domains encountered
 	invalidRecordCount uint             // Count of invalid records encountered
 	filesLoaded        []string         // List of files that were successfully loaded
+	dateProvided       *time.Time       // Date explicitly provided for the dataset
 }
 
 func NewCollector(topCount int, chunkSize uint, verbose bool, date *time.Time, timing *TimingStats) *Collector {
@@ -36,6 +37,7 @@ func NewCollector(topCount int, chunkSize uint, verbose bool, date *time.Time, t
 		invalidDomainCount: 0,
 		invalidRecordCount: 0,
 		filesLoaded:        nil,
+		dateProvided:       date,
 	}
 	c.SetDate(date)
 	return c
