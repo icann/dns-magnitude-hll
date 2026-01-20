@@ -99,7 +99,7 @@ func (dataset *MagnitudeDataset) SetDate(date *time.Time) {
 		now := time.Now().UTC()
 		date = &now
 	}
-	var dateOnly = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	dataset.Date = &TimeWrapper{Time: dateOnly}
 }
 
